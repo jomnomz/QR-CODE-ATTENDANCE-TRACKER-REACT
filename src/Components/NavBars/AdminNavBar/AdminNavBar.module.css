@@ -1,0 +1,91 @@
+
+nav {
+    width: 150px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.admin {
+    display: flex;
+    flex-direction: column;
+    height: 140px;
+    padding: 10px;
+    background-color: #7EC384;
+    color: white;
+    text-align: center;
+}
+
+.toggleHide{
+    background-color: #7EC384;;
+    border: none;
+    color: white;
+    display: flex;
+    justify-content: end;
+}
+.toggleHideIcon{
+    font-size: 20px;
+}
+
+.toggleHide :hover{
+    background-color: #c8f3cb;
+    border-radius: 70px;
+}
+
+.greeting{
+    display: flex;
+    flex-direction: column;
+}
+
+a {
+    text-decoration: none;
+}
+
+.sideBar{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.sideBarButtons {
+    height: 100%;
+    position: relative;
+    background-color: #3F7857;
+    color: white;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sideBarButtons::before {
+    content: '';
+    position: absolute;
+    top: 5%;
+    left: 5%;
+    width: 90%;
+    height: 90%;
+    background-color: #315f44;
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: transform 0.3s ease;
+    z-index: 0;
+    border-radius: 5px;
+}
+
+.sideBarButtons:hover::before,
+.sideBarButtons.active::before {
+    transform: scaleY(1);
+    background-color: #315f44;
+    
+}
+
+.sideBarButtons.active{
+    font-weight: bold;
+}
+
+.sideBarButtonsIcons, .sideBarButtons span {
+    z-index: 1;
+}

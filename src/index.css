@@ -1,0 +1,18 @@
+*{
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+main{
+  display: flex;
+  flex-direction: row;
+  background-color: rgb(244, 246, 249);
+}
+
+.mainContent{
+  margin-left: 30px;
+}
+
+
+
