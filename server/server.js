@@ -1,31 +1,22 @@
-const express = require('express');
-const cors = require('cors');
-const app = express()
-const port = 5000
+import express from 'express';
+import cors from 'cors';
+import studentRoutes from './routes/students.js';
 
-// Middleware
+const app = express();
+const port = 5000;
+
 app.use(cors());
 app.use(express.json());
 
+// Routes
+app.use('/api/students', studentRoutes);
 
-app.get("/api", (req, res) => {
-    res.json({"users": ["userOne", "userTwo", "userThree", "userFour"]})
-})
-
-
-app.get("/api/health", (req, res) => {
-    res.json({ status: 'Server is running!' });
-});
-
-
-app.post('/api/students/upload', (req, res) => {
-    console.log('📁 File upload endpoint hit!');
-    res.json({ 
-        success: true,
-        message: 'File received successfully! Backend is working.' 
-    });
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'Server is running!' });
 });
 
 app.listen(port, () => {
-    console.log(`🚀 Server running on http://localhost:${port}`)
-})
+  console.log(`🚀 Server running on http://localhost:${port}`);
+  console.log(`📚 Routes: /api/students, /api/teachers`);
+});

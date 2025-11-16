@@ -1,0 +1,108 @@
+.studentsTable {
+  margin-top: 10px;
+  width: 1290px;
+}
+
+table {
+  width: 1290px;
+  border-collapse: collapse;
+}
+
+th {
+  background-color: #f2f2f2;
+  padding: 12px;
+  text-align: center;
+}
+
+td, th {
+  text-align: center;
+  padding: 10px;
+}
+
+tbody tr:nth-child(odd) {
+  background-color: white;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+tbody tr:hover {
+  background-color: #8a8a8a;
+  cursor: pointer;
+}
+
+.classContainers {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.classContainersBtn {
+  border: none;
+  padding: 10px 25px;
+  background-color: #a7a6a6;
+  border-radius: 5px;
+  cursor: pointer;
+  border-top-left-radius: 25px;
+  border-top-right-radius: 25px;
+  transition: all 0.3s ease;
+}
+
+.classContainersBtn:hover {
+  background-color: #d0d0d0;
+}
+
+.classContainersBtn.active {
+  background-color: #112F15;
+  color: white;
+}
+
+.studentCard {
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  text-align: left;
+  padding: 20px;
+}
+
+.studentHeader {
+  font-weight: bold;
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+.studentInfo {
+  font-size: 15px;
+  margin: 4px 0;
+}
+
+.hiddenRow {
+  display: none;
+}
+
+.loading, .error, .noStudents {
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+}
+
+.error {
+  color: #d32f2f;
+  background-color: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 4px;
+}
+
+.tableInfo {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+}
+
+.tableInfo p {
+  margin: 0;
+  font-weight: bold;
+  color: #003a02;
+} 
+

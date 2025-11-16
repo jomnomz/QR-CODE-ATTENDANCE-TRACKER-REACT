@@ -1,24 +1,79 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import axios from "axios";
 import Modal from '../Modal/Modal.jsx'
 import styles from './FileUploadModal.module.css'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {faFile,
+} from "@fortawesome/free-solid-svg-icons";
 
-function FileUploadModal({isOpen, onClose} ){
+function FileUploadModal({isOpen, onClose} )    {
 
     const [file, setFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isDragOver, setIsDragOver] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        
+        const droppedFiles = e.dataTransfer.files;
+        if (droppedFiles.length > 0) {
+            handleFileSelection(droppedFiles[0]);
+        }
+    };
+
+    const handleFileInputChange = (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelection(e.target.files[0]);
+        }
+    };
+
+    const handleFileSelection = (selectedFile) => {
+        const validFileExtensions = ['xlsx', 'xls', 'csv'];
+        const extname = selectedFile.name.split('.').pop().toLowerCase();
+        
+        if (!validFileExtensions.includes(extname)) {
+            alert('Please upload a valid Excel file (.xlsx, .xls, .csv)');
+            return;
+        }
+
+        setFile(selectedFile);
+    };
+
+    const handleBrowseClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const resetFileUpload = () => {
+        setFile(null);
+        setIsDragOver(false);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
 
     async function handleUpload(){
         if (!file){
             alert('Please select a file first');
-            return;
-        }
-
-        const validFileExtensions = ['xlsx', 'xls', 'csv'];
-        const fileExtension = file.name.split('.').pop().toLowerCase();
-        
-        if (!validFileExtensions.includes(fileExtension)) {
-            alert('Please upload a valid Excel file (.xlsx, .xls, .csv)');
             return;
         }
 
@@ -40,20 +95,17 @@ function FileUploadModal({isOpen, onClose} ){
 
             console.log('Upload successful:', response.data);
             alert(`Success! ${response.data.message}`);
-            onClose();
-            setFile(null); 
+            onClose();  
+            resetFileUpload();
 
         } catch (error) {
             console.error('Upload failed:', error);
             
             if (error.response) {
-                // Server responded with error status
                 alert(`Upload failed: ${error.response.data.error || 'Server error'}`);
             } else if (error.request) {
-                // Request made but no response received
                 alert('Upload failed: Cannot connect to server. Make sure your backend is running on port 5000.');
             } else {
-                // Something else happened
                 alert(`Upload failed: ${error.message}`);
             }
         } finally {
@@ -61,27 +113,54 @@ function FileUploadModal({isOpen, onClose} ){
         }
     }
 
+    const handleClose = () => {
+        resetFileUpload();
+        onClose();
+    };
+
     return(
-    <Modal isOpen={isOpen} onClose={onClose} size="sm"> 
+    <Modal isOpen={isOpen} onClose={handleClose} size="sm"> 
         <div className={styles.modalContainer}>
             <h2>Upload Student Data</h2>
-            <input 
-                type="file" 
-                onChange={(e) => setFile(e.target.files[0])} 
-                accept=".xlsx, .xls, .csv"
-            />
-            <button 
-                onClick={handleUpload}
-                disabled={!file || isUploading}
+            <p>Please upload an Excel or CSV file with student information</p>
+            
+            <div 
+                className={`${styles.dropArea} ${isDragOver ? styles.highlight : ''} ${file ? styles.hasFile : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
             >
-                {isUploading ? 'Uploading...' : 'Upload'}
-            </button>
+
+                <FontAwesomeIcon icon={faFile} className={styles.icon} />
+                <p>Drag and drop your file here</p>
+                <button 
+                    className={styles.browseBtn}
+                    onClick={handleBrowseClick}
+                >
+                    Select Files
+                </button>
+                <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleFileInputChange}
+                    accept=".xlsx, .xls, .csv"
+                    className={styles.fileInput}
+                />
+            </div>
             
             {file && (
                 <div className={styles.fileInfo}>
-                    <p>Selected file: {file.name}</p>
+                    <p>Selected file: <strong>{file.name}</strong> ({formatFileSize(file.size)})</p>
                 </div>
             )}
+            
+            <button 
+                className={styles.submitBtn}
+                onClick={handleUpload}
+                disabled={!file || isUploading}
+            >
+                {isUploading ? 'Uploading...' : 'Submit'}
+            </button>
         </div>
     </Modal>
     )
