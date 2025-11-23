@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase'; // Adjust path to your supabase client
+import { supabase } from '../../../lib/supabase'; 
+import Button from '../../UI/Buttons/Button/Button';
 import styles from './StudentTable.module.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {faQrcode, faPenToSquare, faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
 
 const StudentTable = () => {
   const [currentClass, setCurrentClass] = useState('7');
@@ -9,7 +13,6 @@ const StudentTable = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch students from database when class changes
   useEffect(() => {
     fetchStudents(currentClass);
   }, [currentClass]);
@@ -22,8 +25,8 @@ const StudentTable = () => {
       const { data, error } = await supabase
         .from('students')
         .select('*')
-        .eq('grade', grade) // Filter by grade
-        .order('last_name', { ascending: true }); // Sort by last name
+        .eq('grade', grade) 
+        .order('last_name', { ascending: true }); 
 
       if (error) throw error;
 
@@ -50,7 +53,6 @@ const StudentTable = () => {
     }
   };
 
-  // Format grade and section for display
   const formatGradeSection = (grade, section) => {
     return `${grade}-${section}`;
   };
@@ -78,13 +80,18 @@ const StudentTable = () => {
       <div className={styles.studentsTable}>
         <div className={styles.classContainers}>
           {grades.map(grade => (
-            <button 
+            <Button 
               key={grade}
-              className={`${styles.classContainersBtn} ${currentClass === grade ? styles.active : ''}`}
+              label={`Grade ${grade}`}
+              tabBottom={true}
+              height="xs"
+              width="xs-sm"
+              color="grades"
+              active={currentClass === grade}
               onClick={() => handleClassChange(grade)}
             >
               Grade {grade}
-            </button>
+            </Button>
           ))}
 
           <div className={styles.tableInfo}>
@@ -111,7 +118,7 @@ const StudentTable = () => {
           <tbody>
             {students.length === 0 ? (
               <tr>
-                <td colSpan="6" className={styles.noStudents}>
+                <td colSpan="11" className={styles.noStudents}>
                   No students found in Grade {currentClass}
                 </td>
               </tr>
@@ -130,6 +137,18 @@ const StudentTable = () => {
                     <td>{student.section}</td>
                     <td>{student.email || "NA"}</td>
                     <td>{student.phone_number || "NA"}</td>
+                    <td><div className={styles.icon}>
+                      <FontAwesomeIcon icon={faQrcode} />
+                    </div>
+                    </td>
+                    <td><div className={styles.icon}>
+                      <FontAwesomeIcon icon={faPenToSquare} />
+                    </div>
+                    </td>
+                    <td><div className={styles.icon}>
+                      <FontAwesomeIcon icon={faTrashCan} />
+                    </div>
+                    </td>
                   </tr>
                   
                   {expandedRow === student.id && (
@@ -137,7 +156,7 @@ const StudentTable = () => {
                       className={styles.expandRow}
                       onClick={() => toggleCard(student.id)}
                     >
-                      <td colSpan="6">
+                      <td colSpan="11">
                         <div className={`${styles.studentCard} ${styles.expand} ${styles.show}`}>
                           <div className={styles.studentHeader}>
                             {student.first_name} {student.last_name}

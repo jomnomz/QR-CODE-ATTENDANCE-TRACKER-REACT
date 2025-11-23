@@ -81,15 +81,6 @@
     transition: background-color 0.3s;
 }
 
-.submitBtn:hover:not(:disabled) {
-    background-color: #315f44;
-}
-
-.submitBtn:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
-
 .loading, .error, .noStudents {
   text-align: center;
   padding: 20px;

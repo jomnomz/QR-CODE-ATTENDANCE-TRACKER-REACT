@@ -2,12 +2,11 @@ import { useState, useRef } from 'react'
 import axios from "axios";
 import Modal from '../Modal/Modal.jsx'
 import styles from './FileUploadModal.module.css'
+import Button from '../../UI/Buttons/Button/Button.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {faFile,
-} from "@fortawesome/free-solid-svg-icons";
+import { faFile } from "@fortawesome/free-solid-svg-icons";
 
-function FileUploadModal({isOpen, onClose} )    {
-
+function FileUploadModal({ isOpen, onClose }) {
     const [file, setFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -130,15 +129,17 @@ function FileUploadModal({isOpen, onClose} )    {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-
                 <FontAwesomeIcon icon={faFile} className={styles.icon} />
                 <p>Drag and drop your file here</p>
-                <button 
+                <Button
+                    label="Select Files" 
+                    height="xs"
+                    width="sm"
+                    pill={true}
+                    color="primary"
                     className={styles.browseBtn}
                     onClick={handleBrowseClick}
-                >
-                    Select Files
-                </button>
+                />
                 <input 
                     type="file" 
                     ref={fileInputRef}
@@ -154,16 +155,15 @@ function FileUploadModal({isOpen, onClose} )    {
                 </div>
             )}
             
-            <button 
+            <Button 
                 className={styles.submitBtn}
                 onClick={handleUpload}
                 disabled={!file || isUploading}
-            >
-                {isUploading ? 'Uploading...' : 'Submit'}
-            </button>
+                label={isUploading ? 'Uploading...' : 'Submit'}
+            />
         </div>
     </Modal>
     )
 }
 
-export default FileUploadModal
+export default FileUploadModal;

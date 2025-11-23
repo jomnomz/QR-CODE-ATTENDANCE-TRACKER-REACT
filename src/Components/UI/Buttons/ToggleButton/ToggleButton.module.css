@@ -1,0 +1,36 @@
+.container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px;
+    box-sizing: border-box;
+    cursor: pointer;
+    overflow: hidden;
+    color: white;
+}
+
+.slider {
+    position: absolute;
+    height: 80%;
+    width: 50%; 
+    background: white;
+    border-radius: 50px;
+    transition: transform 0.25s ease;
+    z-index: 1;
+}
+
+.option {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    font-weight: 500;
+    font-size: 14px;
+    user-select: none;
+    transition: color 0.25s ease;
+    color: white; 
+}
+
+.option.active {
+    color: #54B79A; 
+}

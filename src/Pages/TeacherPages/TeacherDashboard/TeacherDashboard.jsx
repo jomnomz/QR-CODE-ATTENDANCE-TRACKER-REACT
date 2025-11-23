@@ -1,4 +1,4 @@
-import styles from './AdminDashboard.module.css'
+import styles from './TeacherDashboard.module.css'
 import BarGraph from "../../../Components/Charts/BarGraph/BarGraph.jsx";
 import LineChart from "../../../Components/Charts/LineChart/LineChart.jsx";
 import PieChart from "../../../Components/Charts/PieChart/PieChart.jsx";
@@ -16,7 +16,7 @@ import {
   faChalkboardUser,
 } from "@fortawesome/free-solid-svg-icons";
 
-function AdminDashboard() {
+function TeacherDashboard() {
   const { data: students, loading: studentsLoading } = useSupabaseData('students');
 
   const isLoading = studentsLoading;
@@ -68,4 +68,4 @@ function AdminDashboard() {
   )
 }
 
-export default AdminDashboard;
+export default TeacherDashboard;

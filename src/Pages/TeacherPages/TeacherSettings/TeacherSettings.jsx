@@ -1,17 +1,16 @@
-import styles from './AdminSettings.module.css'
+import styles from './TeacherSettings.module.css'
 import PageLabel from "../../../Components/UI/Labels/PageLabel/PageLabel.jsx";
 import Button from '../../../Components/UI/Buttons/Button/Button.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear } from "@fortawesome/free-solid-svg-icons";
 import { supabase } from '../../../lib/supabase.js';
 
-function AdminSettings() {
+function TeacherSettings() {
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Redirect to login page after successful logout
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
@@ -29,4 +28,4 @@ function AdminSettings() {
   );
 }
 
-export default AdminSettings;
+export default TeacherSettings;

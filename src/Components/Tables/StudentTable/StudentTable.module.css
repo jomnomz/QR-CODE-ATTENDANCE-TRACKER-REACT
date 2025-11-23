@@ -19,6 +19,8 @@ td, th {
   padding: 10px;
 }
 
+
+
 tbody tr:nth-child(odd) {
   background-color: white;
 }
@@ -106,3 +108,7 @@ tbody tr:hover {
   color: #003a02;
 } 
 
+
+.icon{
+  font-size: 30px;
+}

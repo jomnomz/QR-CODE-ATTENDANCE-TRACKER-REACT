@@ -1,0 +1,26 @@
+
+.main{
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.pageHeader{
+    display: flex;
+    flex-direction: row;
+    align-items: end;
+    gap: 20px;
+}
+
+.cards{
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+}
+
+.charts{
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+}
+

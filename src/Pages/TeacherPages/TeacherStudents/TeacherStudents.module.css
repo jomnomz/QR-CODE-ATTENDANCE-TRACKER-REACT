@@ -4,10 +4,8 @@
     gap: 25px;
 }
 
-.top {
+.top{
     display: flex;
     flex-direction: row;
-    align-items: center;
-    gap: 900px;
-    width: 100%;
+    justify-content: space-between;
 }

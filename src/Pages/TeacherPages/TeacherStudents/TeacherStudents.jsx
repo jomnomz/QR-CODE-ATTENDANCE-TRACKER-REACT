@@ -1,5 +1,5 @@
 import { useState } from 'react' 
-import styles from './AdminStudents.module.css'
+import styles from './TeacherStudents.module.css'
 import PageLabel from "../../../Components/UI/Labels/PageLabel/PageLabel.jsx";
 import SectionLabel from "../../../Components/UI/Labels/SectionLabel/SectionLabel.jsx";
 import FileUploadModal from "../../../Components/Modals/FileUploadModal/FileUploadModal.jsx";
@@ -11,7 +11,7 @@ import {faUsers,
 }from "@fortawesome/free-solid-svg-icons";
 
 
-function AdminStudents() {
+function TeacherStudents() {
 
   const [isOpen, setIsOpen] = useState(false)
 
@@ -20,7 +20,7 @@ function AdminStudents() {
       <PageLabel icon={<FontAwesomeIcon icon={faUsers} />}  label="Students"></PageLabel>
       <SectionLabel label="Student Record"></SectionLabel>
       <div className={styles.top}>
-        <Button color="success" height="md" width="sm" label="Create" onClick={() => {setIsOpen(true);}}></Button>
+        <Button height="md" width="sm" label="Create" onClick={() => {setIsOpen(true);}}></Button>
         <Input placeholder="Search Name"></Input>
       </div>
       <FileUploadModal isOpen={isOpen} type="student" onClose={() => setIsOpen(false)} />
@@ -29,4 +29,4 @@ function AdminStudents() {
   );
 }
 
-export default AdminStudents;
+export default TeacherStudents;

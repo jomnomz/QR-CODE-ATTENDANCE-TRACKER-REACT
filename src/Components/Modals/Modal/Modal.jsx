@@ -1,15 +1,17 @@
 import styles from './Modal.module.css'
-import ExitButton from "../../UI/Buttons/ExitButton/ExitButton.jsx";
+import Button from '../../UI/Buttons/Button/Button.jsx';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {faCircleXmark,
+} from "@fortawesome/free-solid-svg-icons";
 
 function Modal({ 
   isOpen, 
   onClose, 
   children, 
-  size = "md" // default size variant
+  size = "md" 
 }) {
   if (!isOpen) return null;
 
-  // Define reusable size variants
   const sizeMap = {
     xsm: { width: "300px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
     sm: { width: "400px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
@@ -18,7 +20,7 @@ function Modal({
     xl: { width: "1000px", maxWidth: "95vw", height: "auto", maxHeight: "90vh" },
   };
 
-  const sizeStyle = sizeMap[size] || sizeMap.md; // fallback to md if unknown
+  const sizeStyle = sizeMap[size] || sizeMap.md; 
 
   return (
     <div className={styles.modalBackground} onClick={onClose}>
@@ -28,7 +30,7 @@ function Modal({
         style={sizeStyle}
       >
         <div className={styles.modalHeader}>
-          <ExitButton onClick={onClose} />
+          <Button  height="exit" width="exit" backgroundNone={true} pill={true} icon={<FontAwesomeIcon icon={faCircleXmark} />} onClick={onClose} />
         </div>
         <div className={styles.modalContent}>
           {children}
