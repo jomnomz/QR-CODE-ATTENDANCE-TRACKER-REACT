@@ -35,6 +35,8 @@ function Button(props) {
 
     const widthMap = {
         auto: { width: 'auto', minWidth: 'fit-content' },
+        '95': { width: '95%' },
+        'modal': { width: '70px' },
         full: { width: '100%' },
         'exit': { width: '20px'},
         xxss: { width: '40px'},
@@ -64,9 +66,9 @@ function Button(props) {
             border: 'none',
         },
         success: { 
-            backgroundColor: '#065f46', 
+            backgroundColor: '#016C3F', 
             activeBackground: '#059669', 
-            hoverBackground: '#047857', 
+            hoverBackground: '#075640ff', 
             color: '#ffffff', 
             border: 'none',
         },
@@ -85,7 +87,7 @@ function Button(props) {
             border: 'none',
         },
         grades: { 
-            backgroundColor: "#a7a6a6",
+            backgroundColor: "#A6A6A5",
             activeBackground: "#112F15",
             hoverBackground: "#d0d0d0",
             color: '#ffffff', 
@@ -121,10 +123,8 @@ function Button(props) {
         return colorStyle.backgroundColor;
     };
 
-    // Handle text color for background none
     const getTextColor = () => {
         if (backgroundNone) {
-            // Use a darker version of the color for better contrast on transparent background
             return color === 'primary' ? '#1e293b' : 
                    color === 'secondary' ? '#475569' :
                    color === 'success' ? '#065f46' :
@@ -135,7 +135,6 @@ function Button(props) {
         return colorStyle.color;
     };
 
-    // Handle border for background none
     const getBorder = () => {
         if (backgroundNone) {
             return 'none';

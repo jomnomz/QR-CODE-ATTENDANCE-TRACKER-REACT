@@ -9,12 +9,13 @@ import DateTodayLabel from "../../../Components/UI/Labels/DateTodayLabel/DateTod
 import { useSupabaseData } from '../../../Components/Hooks/FetchData.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faChartSimple,
   faUsers,
-  faPersonBreastfeeding,
-  faCommentSms,
   faChalkboardUser,
 } from "@fortawesome/free-solid-svg-icons";
+
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import FamilyRestroomIcon from '@mui/icons-material/FamilyRestroom';
+import MessageIcon from '@mui/icons-material/Message';
 
 function AdminDashboard() {
   const { data: students, loading: studentsLoading } = useSupabaseData('students');
@@ -27,7 +28,7 @@ function AdminDashboard() {
     <>
       <main className={styles.main}>
         <div className={styles.pageHeader}>
-          <PageLabel icon={<FontAwesomeIcon icon={faChartSimple} />} label="Dashboard"></PageLabel>
+          <PageLabel icon={<DashboardIcon sx={{ fontSize: 50, mb: -0.7 }}  />} label="Dashboard"></PageLabel>
           <DateTodayLabel></DateTodayLabel>    
         </div>
         <SectionLabel label="Registered"></SectionLabel>
@@ -39,7 +40,7 @@ function AdminDashboard() {
             colors={{bg: '#FFB025'}}
           ></DashboardCard>
           <DashboardCard 
-            icon={<FontAwesomeIcon icon={faPersonBreastfeeding} />} 
+            icon={<FamilyRestroomIcon/>} 
             label="Guardians" 
             number={1000} 
             colors={{bg: '#3166e1ff'}}
@@ -51,7 +52,7 @@ function AdminDashboard() {
             colors={{bg: '#4EB99F'}}
           ></DashboardCard>
           <DashboardCard 
-            icon={<FontAwesomeIcon icon={faCommentSms} />} 
+            icon={<MessageIcon/>} 
             label="SMS Sent Today" 
             number={1000} 
             colors={{bg: '#058588'}}

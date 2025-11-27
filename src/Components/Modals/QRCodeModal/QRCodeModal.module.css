@@ -1,0 +1,36 @@
+.modalContainer {
+    padding: 10px;
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.studentInfo h3 {
+  color: #333;
+}
+
+.studentInfo p {
+  color: #666;
+  font-size: 14px;
+}
+
+.qrCodeContainer {
+    width: 200px;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #e0e0e0;
+  margin-bottom: 5px;
+}
+
+.qrActions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}

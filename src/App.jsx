@@ -2,7 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminLayout from './Components/Layouts/AdminLayout/AdminLayout.jsx';
 import TeacherLayout from './Components/Layouts/TeacherLayout/TeacherLayout.jsx';
 import LoginPage from './Pages/LoginPage/LoginPage.jsx';
-import ProtectedRoute from './Components/Authentication/ProtectedRoute/ProtectedRoute.jsx';
+import ProtectedRoute from './Components/Authentication/ProtectedRoutes/ProtectedRoute.jsx';
+import { AuthProvider } from './Components/Authentication/AuthProvider/AuthProvider.jsx';
 import AdminDashboard from './Pages/AdminPages/AdminDashboard/AdminDashboard.jsx';
 import AdminStudents from './Pages/AdminPages/AdminStudents/AdminStudents.jsx';
 import AdminGuardians from './Pages/AdminPages/AdminGuardians/AdminGuardians.jsx';
@@ -21,39 +22,46 @@ import TeacherAttendance from './Pages/TeacherPages/TeacherAtendace/TeacherAtten
 function App() {
   return (
     <Router>
-      <main>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
-          
-          <Route path="/admin" element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminLayout />
-            </ProtectedRoute>
-          }>
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="students" element={<AdminStudents />} />
-            <Route path="guardians" element={<AdminGuardians />} />
-            <Route path="messages" element={<AdminMessages />} />
-            <Route path="attendance" element={<AdminAttendance />} />
-            <Route path="reports" element={<AdminReports />} />
-            <Route path="teachers" element={<AdminTeachers />} />
-            <Route path="settings" element={<AdminSettings />} />
-          </Route>
+      <AuthProvider>       
+        <main>
+          <Routes>
+            <Route path="/" element={<LoginPage />} />
 
-          <Route path="/teacher" element={
-            <ProtectedRoute requiredRole="teacher">
-              <TeacherLayout />
-            </ProtectedRoute>
-          }>
-            <Route path="dashboard" element={<TeacherDashboard />} />
-            <Route path="students" element={<TeacherStudents />} />
-            <Route path="attendance" element={<TeacherAttendance />} />
-            <Route path="reports" element={<TeacherReports />} />
-            <Route path="settings" element={<TeacherSettings />} />
-          </Route>
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="students" element={<AdminStudents />} />
+              <Route path="guardians" element={<AdminGuardians />} />
+              <Route path="messages" element={<AdminMessages />} />
+              <Route path="attendance" element={<AdminAttendance />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="teachers" element={<AdminTeachers />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
 
-        </Routes>
-      </main>
+            <Route
+              path="/teacher"
+              element={
+                <ProtectedRoute requiredRole="teacher">
+                  <TeacherLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="dashboard" element={<TeacherDashboard />} />
+              <Route path="students" element={<TeacherStudents />} />
+              <Route path="attendance" element={<TeacherAttendance />} />
+              <Route path="reports" element={<TeacherReports />} />
+              <Route path="settings" element={<TeacherSettings />} />
+            </Route>
+          </Routes>
+        </main>
+      </AuthProvider>
     </Router>
   );
 }

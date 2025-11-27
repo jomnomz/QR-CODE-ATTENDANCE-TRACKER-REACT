@@ -9,7 +9,7 @@
   border: none;
   box-shadow: 0 0 10px rgba(160, 159, 159, 0.5);
   background: rgba(255, 255, 255, 0.9);
-  gap: 30px;
+  gap: 25px;
   box-shadow: 0 0 40px rgb(89, 89, 89);
 }
 
@@ -29,8 +29,8 @@
 .logo {
   display: flex;
   justify-content: center;
-  height: 100px;
-  width: 100px;
+  height: 130px;
+  width: 130px;
 }
 
 .logo img {
@@ -38,3 +38,41 @@
   width: 100%;
 }
 
+.error{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 5px;
+    color: white;
+    background-color: #FF4930;
+    width: 95%;
+    height: 8%;
+    gap: 5px;
+}
+
+.inputWrapper{
+    width: 99%;
+    margin-left: 15px;
+}
+
+.passwordContainer {
+  position: relative;
+  width: 100%;
+}
+
+.eyeButton {
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+  z-index: 2;
+}
+
+.eyeButton:hover {
+  color: #333;
+}

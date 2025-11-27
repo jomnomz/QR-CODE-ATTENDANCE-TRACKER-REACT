@@ -1,14 +1,22 @@
-import styles from './AdminLayout.module.css'
-import NavBar from '../../NavBars/NavBar/NavBar.jsx'
+import { useState } from 'react';
+import styles from './AdminLayout.module.css';
+import NavBar from '../../NavBars/NavBar/NavBar.jsx';
 import { Outlet } from 'react-router-dom';
 
 const AdminLayout = () => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
     <>
-      <div>
-        <NavBar userType="admin"/>
-      </div>
-      <div className={styles.mainContent}>
+      <NavBar 
+        userType="admin"
+        onCollapseChange={(collapsed) => setIsCollapsed(collapsed)}
+      />
+
+      <div 
+        className={styles.mainContent}
+        style={{ marginLeft: isCollapsed ? "70px" : "40px" }} 
+      >
         <Outlet />
       </div>
     </>

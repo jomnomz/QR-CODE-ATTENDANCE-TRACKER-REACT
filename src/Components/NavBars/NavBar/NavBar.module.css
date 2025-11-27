@@ -1,9 +1,13 @@
-
 nav {
-    width: 150px;
+    width: 135px;
     display: flex;
     flex-direction: column;
     height: 100vh;
+    transition: width 0.3s ease;
+}
+
+nav.collapsed {
+    width: 60px;
 }
 
 .admin {
@@ -14,25 +18,34 @@ nav {
     background-color: #7EC384;
     color: white;
     text-align: center;
+    overflow: hidden;
+    position: relative;
 }
 
-.toggleHide{
-    background-color: #7EC384;;
+.toggleHide {
+    background-color: #7EC384;
     border: none;
     color: white;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
     display: flex;
-    justify-content: end;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;
+    transition: background-color 0.3s ease;
 }
-.toggleHideIcon{
+
+.toggleHideIcon {
     font-size: 20px;
 }
 
-.toggleHide :hover{
+.toggleHide:hover {
     background-color: #c8f3cb;
-    border-radius: 70px;
 }
 
-.greeting{
+.greeting {
     display: flex;
     flex-direction: column;
 }
@@ -41,7 +54,7 @@ a {
     text-decoration: none;
 }
 
-.sideBar{
+.sideBar {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -58,6 +71,9 @@ a {
     padding: 10px 0;
     display: flex;
     flex-direction: column;
+    gap: 5px;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .sideBarButtons::before {
@@ -79,13 +95,32 @@ a {
 .sideBarButtons.active::before {
     transform: scaleY(1);
     background-color: #315f44;
-    
 }
 
-.sideBarButtons.active{
+.sideBarButtons.active {
     font-weight: bold;
 }
 
 .sideBarButtonsIcons, .sideBarButtons span {
     z-index: 1;
+}
+
+/* Additional styles for collapsed state */
+nav.collapsed .admin {
+    height: 50px;
+    padding: 10px 5px;
+}
+
+nav.collapsed .sideBarButtons {
+    padding: 15px 0;
+}
+
+nav.collapsed .sideBarButtons span {
+    display: none;
+}
+
+/* Center the toggle button when collapsed */
+nav.collapsed .toggleHide {
+    align-self: center;
+    margin-bottom: 0;
 }

@@ -1,54 +1,75 @@
 import styles from './NavBar.module.css'
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../Authentication/AuthProvider/AuthProvider';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {faChartSimple,
-        faUsers,
-        faPersonBreastfeeding,
-        faCommentSms,
-        faClipboardCheck,
-        faClipboard,
-        faChalkboardUser,
-        faGear,
-        faBars,
+import {
+  faUsers,
+  faChalkboardUser,
 } from "@fortawesome/free-solid-svg-icons";
+import { useState } from 'react';
 
-function NavBar({ userType = 'admin' }) {
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import FamilyRestroomIcon from '@mui/icons-material/FamilyRestroom';
+import MessageIcon from '@mui/icons-material/Message';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import SettingsIcon from '@mui/icons-material/Settings';
+import MenuIcon from '@mui/icons-material/Menu';
+
+function NavBar({ userType = 'admin', onCollapseChange }) {
   const location = useLocation();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { profile } = useAuth()
+
+  const toggleNavbar = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    if (onCollapseChange) onCollapseChange(newState);
+  };
 
   const isActive = (path) => {
     return location.pathname === `/${userType}${path}`;
-  }
+  };
 
   const navItems = {
     admin: [
-      { path: '/dashboard', icon: faChartSimple, label: 'Dashboard' },
-      { path: '/students', icon: faUsers, label: 'Students' },
-      { path: '/guardians', icon: faPersonBreastfeeding, label: 'Guardians' },
-      { path: '/messages', icon: faCommentSms, label: 'Messages' },
-      { path: '/attendance', icon: faClipboardCheck, label: 'Attendance' },
-      { path: '/teachers', icon: faChalkboardUser, label: 'Teachers' },
-      { path: '/reports', icon: faClipboard, label: 'Reports' },
-      { path: '/settings', icon: faGear, label: 'Settings' }
+      { path: '/dashboard', icon: <DashboardIcon />, label: 'Dashboard', type: 'mui' },
+      { path: '/students', icon: faUsers, label: 'Students', type: 'fa' },
+      { path: '/guardians', icon: <FamilyRestroomIcon />, label: 'Guardians', type: 'mui' },
+      { path: '/messages', icon: <MessageIcon />, label: 'Messages', type: 'mui' },
+      { path: '/attendance', icon: <AssignmentTurnedInIcon />, label: 'Attendance', type: 'mui' },
+      { path: '/teachers', icon: faChalkboardUser, label: 'Teachers', type: 'fa' },
+      { path: '/reports', icon: <AssignmentIcon />, label: 'Reports', type: 'mui' },
+      { path: '/settings', icon: <SettingsIcon />, label: 'Settings', type: 'mui' }
     ],
     teacher: [
-      { path: '/dashboard', icon: faChartSimple, label: 'Dashboard' },
-      { path: '/attendance', icon: faClipboardCheck, label: 'Attendance' },
-      { path: '/students', icon: faUsers, label: 'Students' },
-      { path: '/reports', icon: faClipboard, label: 'Reports' },
-      { path: '/settings', icon: faGear, label: 'Settings' }
+      { path: '/dashboard', icon: <DashboardIcon />, label: 'Dashboard', type: 'mui' },
+      { path: '/attendance', icon: <AssignmentTurnedInIcon />, label: 'Attendance', type: 'mui' },
+      { path: '/students', icon: faUsers, label: 'Students', type: 'fa' },
+      { path: '/reports', icon: <AssignmentIcon />, label: 'Reports', type: 'mui' },
+      { path: '/settings', icon: <SettingsIcon />, label: 'Settings', type: 'mui' }
     ]
   };
 
   const currentNavItems = navItems[userType] || navItems.admin;
 
   return (
-    <nav>
+    <nav className={`${styles.nav} ${isCollapsed ? styles.collapsed : ''}`}>
       <div className={styles.admin}>
-        <button className={styles.toggleHide}>
-          <FontAwesomeIcon icon={faBars} className={styles.toggleHideIcon}/>
+        <button className={styles.toggleHide} onClick={toggleNavbar}>
+          <MenuIcon className={styles.toggleHideIcon}/>
         </button>
-        <p>Welcome!</p>
-        <p>{userType === 'admin' ? 'Admin Huge Jashley Novilla' : 'Teacher Name'}</p>
+        {!isCollapsed && (
+          <>
+            <p>Welcome!</p>
+             <p>
+              {userType === 'admin' 
+                ? `Admin ${profile?.first_name} ${profile?.last_name}`
+                : `Teacher ${profile?.first_name} ${profile?.last_name}`
+              }
+            </p>
+          </>
+        )}
       </div>
 
       <div className={styles.sideBar}>
@@ -57,9 +78,16 @@ function NavBar({ userType = 'admin' }) {
             key={item.path}
             to={`/${userType}${item.path}`}
             className={`${styles.sideBarButtons} ${isActive(item.path) ? styles.active : ''}`}
+            title={isCollapsed ? item.label : ''}
           >
-            <FontAwesomeIcon icon={item.icon} className={styles.sideBarButtonsIcons}/>
-            <span>{item.label}</span>
+            {item.type === 'fa' ? (
+              <FontAwesomeIcon icon={item.icon} className={styles.sideBarButtonsIcons}/>
+            ) : (
+              <div className={styles.sideBarButtonsIcons}>
+                {item.icon}
+              </div>
+            )}
+            {!isCollapsed && <span>{item.label}</span>}
           </Link>
         ))}
       </div>
@@ -67,4 +95,4 @@ function NavBar({ userType = 'admin' }) {
   );
 }
 
-export default NavBar
+export default NavBar;

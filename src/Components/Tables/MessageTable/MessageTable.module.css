@@ -1,4 +1,4 @@
-.teachersTable {
+.messagesTable {
   margin-top: 10px;
   width: 1290px;
 }
@@ -19,8 +19,6 @@ td, th {
   padding: 10px;
 }
 
-
-
 tbody tr:nth-child(odd) {
   background-color: white;
 }
@@ -40,7 +38,7 @@ tbody tr:hover {
   margin-bottom: 5px;
 }
 
-.teacherCard {
+.messageCard {
   background-color: #f9f9f9;
   border-radius: 10px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -48,13 +46,13 @@ tbody tr:hover {
   padding: 20px;
 }
 
-.teacherHeader {
+.messageHeader {
   font-weight: bold;
   font-size: 30px;
   margin-bottom: 10px;
 }
 
-.teacherInfo {
+.messageInfo {
   font-size: 15px;
   margin: 4px 0;
 }
@@ -63,7 +61,7 @@ tbody tr:hover {
   display: none;
 }
 
-.loading, .error, .noTeachers {
+.loading, .error, .noMessage{
   text-align: center;
   padding: 20px;
   font-size: 16px;
@@ -87,8 +85,3 @@ tbody tr:hover {
   font-weight: bold;
   color: #003a02;
 } 
-
-
-.icon{
-  font-size: 30px;
-}

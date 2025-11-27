@@ -3,8 +3,7 @@ import axios from "axios";
 import Modal from '../Modal/Modal.jsx'
 import styles from './FileUploadModal.module.css'
 import Button from '../../UI/Buttons/Button/Button.jsx';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFile } from "@fortawesome/free-solid-svg-icons";
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 
 function FileUploadModal({ isOpen, onClose }) {
     const [file, setFile] = useState(null);
@@ -129,7 +128,7 @@ function FileUploadModal({ isOpen, onClose }) {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-                <FontAwesomeIcon icon={faFile} className={styles.icon} />
+                <InsertDriveFileIcon sx={{ fontSize: 90 }} className={styles.icon} /> 
                 <p>Drag and drop your file here</p>
                 <Button
                     label="Select Files" 

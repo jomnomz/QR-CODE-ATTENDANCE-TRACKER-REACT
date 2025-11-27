@@ -1,8 +1,7 @@
 import styles from './Modal.module.css'
 import Button from '../../UI/Buttons/Button/Button.jsx';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {faCircleXmark,
-} from "@fortawesome/free-solid-svg-icons";
+import CancelIcon from '@mui/icons-material/Cancel';
+import { useEffect, useState } from 'react';
 
 function Modal({ 
   isOpen, 
@@ -10,7 +9,21 @@ function Modal({
   children, 
   size = "md" 
 }) {
-  if (!isOpen) return null;
+  const [shouldRender, setShouldRender] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+    }
+  }, [isOpen]);
+
+  const handleAnimationEnd = () => {
+    if (!isOpen) {
+      setShouldRender(false);
+    }
+  };
+
+  if (!shouldRender) return null;
 
   const sizeMap = {
     xsm: { width: "300px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
@@ -23,14 +36,18 @@ function Modal({
   const sizeStyle = sizeMap[size] || sizeMap.md; 
 
   return (
-    <div className={styles.modalBackground} onClick={onClose}>
+    <div 
+      className={`${styles.modalBackground} ${isOpen ? styles.backgroundEnter : styles.backgroundExit}`}
+      onClick={onClose}
+      onAnimationEnd={handleAnimationEnd}
+    >
       <div 
-        className={styles.modalContainer} 
+        className={`${styles.modalContainer} ${isOpen ? styles.modalEnter : styles.modalExit}`}
         onClick={(e) => e.stopPropagation()}
         style={sizeStyle}
       >
         <div className={styles.modalHeader}>
-          <Button  height="exit" width="exit" backgroundNone={true} pill={true} icon={<FontAwesomeIcon icon={faCircleXmark} />} onClick={onClose} />
+          <Button height="exit" width="exit" backgroundNone={true} pill={true} icon={<CancelIcon/>} onClick={onClose} />
         </div>
         <div className={styles.modalContent}>
           {children}

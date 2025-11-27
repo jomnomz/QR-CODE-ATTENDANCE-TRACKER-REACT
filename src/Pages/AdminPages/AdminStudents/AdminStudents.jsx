@@ -18,7 +18,7 @@ function AdminStudents() {
   return (
     <main className={styles.main}>
       <PageLabel icon={<FontAwesomeIcon icon={faUsers} />}  label="Students"></PageLabel>
-      <SectionLabel label="Student Record"></SectionLabel>
+      <SectionLabel label="Student Records"></SectionLabel>
       <div className={styles.top}>
         <Button color="success" height="md" width="sm" label="Create" onClick={() => {setIsOpen(true);}}></Button>
         <Input placeholder="Search Name"></Input>
