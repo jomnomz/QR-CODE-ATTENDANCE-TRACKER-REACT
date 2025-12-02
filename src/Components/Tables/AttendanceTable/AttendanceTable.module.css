@@ -1,17 +1,41 @@
-.attendancesTable {
-  margin-top: 10px;
-  width: 1290px;
+.attendanceTableContainer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-table {
+.attendanceTable {
+  margin-top: 10px;
+}
+
+.tableWrapper {
+  max-height: 66vh;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.attendancesTable {
   width: 1290px;
   border-collapse: collapse;
+  margin: 0;
+}
+
+.tableWrapper thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f2f2f2;
+  z-index: 10;
+  box-shadow: 0 1px 0 #e0e0e0;
 }
 
 th {
-  background-color: #f2f2f2;
   padding: 12px;
   text-align: center;
+}
+
+.studentRow td {
+  padding: 16px 12px;
 }
 
 td, th {
@@ -19,18 +43,22 @@ td, th {
   padding: 10px;
 }
 
-
-
-tbody tr:nth-child(odd) {
-  background-color: white;
+tbody tr {
+  margin: 0;
+  padding: 0;
+  border-spacing: 0;
 }
 
-tbody tr:nth-child(even) {
-  background-color: #f2f2f2;
+.rowEven {
+  background-color: white !important;
 }
 
-tbody tr:hover {
-  background-color: #8a8a8a;
+.rowOdd {
+  background-color: #f2f2f2 !important;
+}
+
+.studentRow:hover {
+  background-color: #8a8a8a !important;
   cursor: pointer;
 }
 
@@ -46,6 +74,48 @@ tbody tr:hover {
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   text-align: left;
   padding: 20px;
+  cursor: default;
+}
+
+.expandableCard {
+  max-height: 0;
+  padding: 0 20px;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  transform: scaleY(0.8);
+  transform-origin: top;
+}
+
+.expandRowActive .expandableCard {
+  max-height: 500px;
+  padding: 20px;
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.expandRow {
+  height: 0;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.expandRowActive {
+  height: auto;
+  max-height: 500px;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.expandRow td {
+  padding: 0;
+  margin: 0;
+  border: none;
 }
 
 .attendanceHeader {
@@ -59,11 +129,7 @@ tbody tr:hover {
   margin: 4px 0;
 }
 
-.hiddenRow {
-  display: none;
-}
-
-.loading, .error, .noAttendance{
+.loading, .error, .noAttendance {
   text-align: center;
   padding: 20px;
   font-size: 16px;
@@ -87,3 +153,28 @@ tbody tr:hover {
   font-weight: bold;
   color: #003a02;
 } 
+
+.status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+.statusPresent {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.statusAbsent {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.hiddenRow {
+  display: none;
+}
+
+.expandRow:hover {
+  background-color: inherit;
+}

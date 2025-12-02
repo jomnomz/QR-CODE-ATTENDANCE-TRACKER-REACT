@@ -19,8 +19,11 @@ import TeacherSettings from './Pages/TeacherPages/TeacherSettings/TeacherSetting
 import TeacherStudents from './Pages/TeacherPages/TeacherStudents/TeacherStudents.jsx';
 import TeacherAttendance from './Pages/TeacherPages/TeacherAtendace/TeacherAttendance.jsx';
 
+import { ToastProvider } from './Components/Toast/ToastContext/ToastContext.jsx';
+
 function App() {
   return (
+    <ToastProvider>
     <Router>
       <AuthProvider>       
         <main>
@@ -63,6 +66,7 @@ function App() {
         </main>
       </AuthProvider>
     </Router>
+    </ToastProvider>
   );
 }
 

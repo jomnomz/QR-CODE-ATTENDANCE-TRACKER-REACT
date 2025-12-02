@@ -17,7 +17,20 @@ const LoginPage = () => {
     }
   }, [loading, user, profile, navigate]);
 
- 
+ /*  if (loading) {
+    return (
+      <div style={{
+        width: "100vw",
+        height: "100vh",
+        backgroundColor: "white",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center"
+      }}>
+        <div>Loading...</div>
+      </div>
+    );
+  } */
 
   return (
     <div

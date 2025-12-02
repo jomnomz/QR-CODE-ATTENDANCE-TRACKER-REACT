@@ -1,51 +1,108 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
+import { useAttendance } from '../../Hooks/useAttendance'; 
+import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
+import { grades, shouldHandleRowClick, attendanceTableColumns } from '../../../Utils/tableHelpers';
+import { formatStudentName, formatDate, formatNA, formatTime, formatAttendanceStatus, formatGradeSection } from '../../../Utils/Formatters'; 
+import { sortStudents } from '../../../Utils/CompareHelpers';
 import Button from '../../UI/Buttons/Button/Button';
 import styles from './AttendanceTable.module.css';
 
 const AttendanceTable = () => {
-  const [currentClass, setCurrentClass] = useState('7');
-  const [expandedRow, setExpandedRow] = useState(null);
-  const [attendances, setAttendances] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { currentClass, attendances, loading, error, currentDate, changeClass } = useAttendance();
+  const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
 
-  useEffect(() => {
-    const mockAttendance = [
-      {
-        id: '2022-00012-PQ-0',
-        first_name: 'Flord',
-        middle_name:'Ogabang',
-        last_name:'Quijote',
-        grade_section: '7-1',
-        time_in: '7:41:13 am',
-        time_out: '4:30:45 pm',
-        date: '05/30/2025',
-        status: 'Present',
-      }
-    ];
-    setAttendances(mockAttendance);
-    setLoading(false);
-  }, [currentClass]);
+  // Sort attendances
+  const sortedAttendances = useMemo(() => sortStudents(attendances), [attendances]);
 
   const handleClassChange = (className) => {
-    setCurrentClass(className);
-    setExpandedRow(null);
+    changeClass(className);
+    toggleRow(null);
   };
 
-  const toggleCard = (attendanceId) => {
-    if (expandedRow === attendanceId) {
-      setExpandedRow(null);
-    } else {
-      setExpandedRow(attendanceId);
+  const handleRowClick = (attendanceId, e) => {
+    if (shouldHandleRowClick(false, e.target)) {
+      toggleRow(attendanceId);
     }
   };
 
-  const grades = ['7', '8', '9', '10', '11', '12'];
+  const formatStatusWithStyle = (status) => {
+    const baseClass = styles.status;
+    const statusClass = status === 'present' ? styles.statusPresent : styles.statusAbsent;
+    return {
+      text: formatAttendanceStatus(status),
+      className: `${baseClass} ${statusClass}`
+    };
+  };
+
+  const renderExpandedRow = (attendance) => {
+    const statusInfo = formatStatusWithStyle(attendance.status);
+    
+    return (
+      <tr className={`${styles.expandRow} ${isRowExpanded(attendance.id) ? styles.expandRowActive : ''}`}>
+        <td colSpan={attendanceTableColumns.length}>
+          <div 
+            className={`${styles.attendanceCard} ${styles.expandableCard}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.attendanceHeader}>
+              {formatStudentName(attendance)}
+            </div>
+            <div className={styles.studentInfo}>
+              <strong>Attendance Details for Today</strong>
+            </div>
+            <div className={styles.attendanceInfo}>LRN: {formatNA(attendance.lrn)}</div>
+            <div className={styles.attendanceInfo}>Full Name: {formatStudentName(attendance)}</div>
+            <div className={styles.attendanceInfo}>Grade & Section: {formatGradeSection(attendance)}</div>
+            <div className={styles.attendanceInfo}>Time In: {formatTime(attendance.time_in)}</div>
+            <div className={styles.attendanceInfo}>Time Out: {formatTime(attendance.time_out)}</div>
+            <div className={styles.attendanceInfo}>Date: {formatDate(attendance.date)}</div>
+            <div className={styles.attendanceInfo}>
+              Status: <span className={statusInfo.className}>{statusInfo.text}</span>
+            </div>
+            {attendance.created_at && (
+              <div className={styles.attendanceInfo}>
+                Record Updated: {formatDate(attendance.created_at)}
+              </div>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.attendanceTableContainer}>
+        <div className={styles.loading}>Loading attendance records...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.attendanceTableContainer}>
+        <div className={styles.error}>Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles.attendanceTableContainer}>
+    <div className={styles.attendanceTableContainer} ref={tableRef}>
       <div className={styles.attendanceTable}>
         <div className={styles.classContainers}>
+          {/* ADDED: "All" button */}
+          <Button 
+            label="All"
+            tabBottom={true}
+            height="xs"
+            width="xs-sm"
+            color="grades"
+            active={currentClass === 'all'}
+            onClick={() => handleClassChange('all')}
+          >
+            All
+          </Button>
+          
           {grades.map(grade => (
             <Button 
               key={grade}
@@ -62,75 +119,72 @@ const AttendanceTable = () => {
           ))}
 
           <div className={styles.tableInfo}>
-              <p>Showing {attendances.length} Guardian/s in Grade {currentClass}</p>
+            <p>
+              Showing {sortedAttendances.length} attendance records for {currentDate}
+              {currentClass === 'all' 
+                ? ' across all grades' 
+                : ` in Grade ${currentClass}`}
+            </p>
           </div>
         </div>
 
-        <table className={styles.attendancesTable}>
-          <thead>
-            <tr>
-              <th>ID.NO</th>
-              <th>FIRST NAME</th>
-              <th>LAST NAME</th>
-              <th>GRADE AND SECTION</th>
-              <th>TIME IN</th>
-              <th>TIME OUT</th>
-              <th>DATE</th>
-              <th>STATUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {attendances.length === 0 ? (
+        <div className={styles.tableWrapper}>
+          <table className={styles.attendancesTable}>
+            <thead>
               <tr>
-                <td colSpan="8" className={styles.noAttendance}>
-                  No Attendance found
-                </td>
+                {attendanceTableColumns.map(column => (
+                  <th key={column.key}>{column.label}</th>
+                ))}
               </tr>
-            ) : (
-              attendances.map(attendance => (
-                <React.Fragment key={attendance.id}>
-                  <tr 
-                    className={`${styles.studentRow} ${expandedRow === attendance.id ? styles.hiddenRow : ''}`}
-                    onClick={() => toggleCard(attendance.id)}
-                  >
-                    <td>{attendance.id}</td>
-                    <td>{attendance.first_name}</td>
-                    <td>{attendance.last_name}</td>
-                    <td>{attendance.grade_section}</td>
-                    <td>{attendance.time_in}</td>
-                    <td>{attendance.time_out}</td>
-                    <td>{attendance.date}</td>
-                    <td>{attendance.status}</td>
-                  </tr>
+            </thead>
+            <tbody>
+              {sortedAttendances.length === 0 ? (
+                <tr>
+                  <td colSpan={attendanceTableColumns.length} className={styles.noAttendance}>
+                    {currentClass === 'all' 
+                      ? `No attendance records found for ${currentDate} across all grades` 
+                      : `No attendance records found for ${currentDate} in Grade ${currentClass}`}
+                  </td>
+                </tr>
+              ) : (
+                sortedAttendances.map((attendance, index) => {
+                  const visibleRowIndex = sortedAttendances
+                    .slice(0, index)
+                    .filter(a => !isRowExpanded(a.id))
+                    .length;
                   
-                  {expandedRow === attendance.id && (
-                    <tr 
-                      className={styles.expandRow}
-                      onClick={() => toggleCard(attendance.id)}
-                    >
-                      <td colSpan="8">
-                        <div className={`${styles.attendanceCard} ${styles.expand} ${styles.show}`}>
-                          <div className={styles.attendanceHeader}>
-                            {attendance.first_name} {attendance.last_name}
-                          </div>
-                          <div className={styles.studentInfo}>
-                            <strong>Attendance Details</strong>
-                          </div>
-                          <div className={styles.attendanceInfo}>Student ID: {attendance.id}</div>
-                          <div className={styles.attendanceInfo}>Full Name: {attendance.first_name} {attendance.middle_name} {attendance.last_name}</div>
-                          <div className={styles.attendanceInfo}>Time In: {attendance.time_in}</div>
-                          <div className={styles.attendanceInfo}>Time Out: {attendance.time_out}</div>
-                          <div className={styles.attendanceInfo}>Date: {attendance.date}</div>
-                          <div className={styles.attendanceInfo}>Status: {attendance.status}</div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))
-            )}
-          </tbody>
-        </table>
+                  const rowColorClass = visibleRowIndex % 2 === 0 ? styles.rowEven : styles.rowOdd;
+                  const statusInfo = formatStatusWithStyle(attendance.status);
+
+                  return (
+                    <React.Fragment key={attendance.id}>
+                      {!isRowExpanded(attendance.id) && (
+                        <tr 
+                          className={`${styles.studentRow} ${rowColorClass}`}
+                          onClick={(e) => handleRowClick(attendance.id, e)}
+                        >
+                          <td>{formatNA(attendance.lrn)}</td>
+                          <td>{formatNA(attendance.first_name)}</td>
+                          <td>{formatNA(attendance.last_name)}</td>
+                          <td>{formatGradeSection(attendance)}</td>
+                          <td>{formatTime(attendance.time_in)}</td>
+                          <td>{formatTime(attendance.time_out)}</td>
+                          <td>{formatDate(attendance.date)}</td>
+                          <td>
+                            <span className={statusInfo.className}>
+                              {statusInfo.text}
+                            </span>
+                          </td>
+                        </tr>
+                      )}
+                      {renderExpandedRow(attendance)}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

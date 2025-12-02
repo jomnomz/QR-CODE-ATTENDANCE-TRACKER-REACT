@@ -1,0 +1,73 @@
+/* Base InfoBox styling */
+.infoBox {
+  display: flex;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.infoText {
+  width: 100%;
+}
+
+.infoText strong {
+  font-weight: 600;
+}
+
+/* Note variant */
+.note {
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+}
+
+.note .infoText {
+  color: #0369a1;
+}
+
+.note .infoText strong {
+  color: #075985;
+}
+
+/* Warning variant */
+.warning {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.warning .infoText {
+  color: #dc2626;
+}
+
+.warning .infoText strong {
+  color: #dc2626;
+}
+
+/* Important variant */
+.important {
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.important .infoText {
+  color: #92400e;
+}
+
+.important .infoText strong {
+  color: #92400e;
+}
+
+/* Info variant */
+.info {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.info .infoText {
+  color: #1e40af;
+}
+
+.info .infoText strong {
+  color: #1e40af;
+}

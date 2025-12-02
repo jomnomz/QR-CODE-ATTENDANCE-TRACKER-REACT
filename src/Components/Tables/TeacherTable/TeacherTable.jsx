@@ -14,7 +14,6 @@ const TeacherTable = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Mock data for one teacher
     const mockTeacher = [
       {
         id: 1,

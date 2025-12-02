@@ -95,7 +95,7 @@ function LoginForm() {
             className={styles.eyeButton}
             onClick={() => setShowPassword(!showPassword)}
           >
-            {showPassword ? <VisibilityOffIcon/> : <VisibilityIcon/>} 
+            {showPassword ? <VisibilityOffIcon sx={{ fontSize: 20 }}/> : <VisibilityIcon sx={{ fontSize: 20 }}/>} 
           </button>
         </div>
       </div>

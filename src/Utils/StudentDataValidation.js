@@ -1,8 +1,8 @@
 export const validateStudentData = (studentData) => {
   const errors = {};
   
-  if (!studentData.student_id?.trim()) {
-    errors.student_id = 'Student ID is required';
+  if (!studentData.lrn?.trim()) {
+    errors.lrn = 'LRN is required';
   }
   
   if (!studentData.first_name?.trim()) {

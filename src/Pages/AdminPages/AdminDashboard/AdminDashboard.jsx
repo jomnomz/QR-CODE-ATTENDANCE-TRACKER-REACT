@@ -6,7 +6,7 @@ import DashboardCard from "../../../Components/UI/Cards/DashboardCard/DashboardC
 import SectionLabel from "../../../Components/UI/Labels/SectionLabel/SectionLabel.jsx";
 import PageLabel from "../../../Components/UI/Labels/PageLabel/PageLabel.jsx";
 import DateTodayLabel from "../../../Components/UI/Labels/DateTodayLabel/DateTodayLabel.jsx";
-import { useSupabaseData } from '../../../Components/Hooks/FetchData.jsx';
+import { useSupabaseData } from '../../../Components/Hooks/fetchData.js'; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faUsers,

@@ -21,7 +21,6 @@ table {
   margin: 0;
 }
 
-
 .tableWrapper thead th {
   position: sticky;
   top: 0;
@@ -40,16 +39,22 @@ td, th {
   padding: 10px;
 }
 
-tbody tr:nth-child(odd) {
-  background-color: white;
+tbody tr {
+  margin: 0;
+  padding: 0;
+  border-spacing: 0;
 }
 
-tbody tr:nth-child(even) {
-  background-color: #f2f2f2;
+.rowEven {
+  background-color: white !important;
 }
 
-tbody tr:hover {
-  background-color: #8a8a8a;
+.rowOdd {
+  background-color: #f2f2f2 !important;
+}
+
+.studentRow:hover {
+  background-color: #8a8a8a !important;
   cursor: pointer;
 }
 
@@ -68,6 +73,47 @@ tbody tr:hover {
   cursor: default;
 }
 
+.expandableCard {
+  max-height: 0;
+  padding: 0 20px;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  transform: scaleY(0.8);
+  transform-origin: top;
+}
+
+.expandRowActive .expandableCard {
+  max-height: 500px;
+  padding: 20px;
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.expandRow {
+  height: 0;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.expandRowActive {
+  height: auto;
+  max-height: 500px;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.expandRow td {
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
 .studentHeader {
   font-weight: bold;
   font-size: 30px;
@@ -77,10 +123,6 @@ tbody tr:hover {
 .studentInfo {
   font-size: 15px;
   margin: 4px 0;
-}
-
-.hiddenRow {
-  display: none;
 }
 
 .loading, .error, .noStudents {
@@ -111,7 +153,6 @@ tbody tr:hover {
 .icon{
   font-size: 30px;
 }
-
 
 .editInput {
   padding: 8px 12px;
@@ -209,5 +250,38 @@ tbody tr:hover {
 }
 
 .expandRow:hover {
-  background-color: inherit ;
+  background-color: inherit;
+}
+
+/* Add these styles to your existing StudentTable.module.css */
+
+.editSelect {
+  width: 100%;
+  padding: 8px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.editSelect:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Style for the datalist input */
+.editInput[list] {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.editInput[list]:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }

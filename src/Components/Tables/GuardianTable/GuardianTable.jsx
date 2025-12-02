@@ -1,54 +1,206 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useGuardians } from '../../Hooks/useEntities';
+import { useEntityEdit } from '../../Hooks/useEntityEdit';
+import { useRowExpansion } from '../../Hooks/useRowExpansion';
+import { GuardianService } from '../../../Utils/EntityService'; 
+import { grades } from '../../../Utils/tableHelpers';
+import { formatNA } from '../../../Utils/Formatters';
+import { sortGuardians } from '../../../Utils/SortEntities'; 
+import { compareSections } from '../../../Utils/CompareHelpers'; 
 import Button from '../../UI/Buttons/Button/Button';
 import styles from './GuardianTable.module.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {faPenToSquare, faTrashCan, 
-} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPenToSquare } from "@fortawesome/free-solid-svg-icons";
 
 const GuardianTable = () => {
-  const [currentClass, setCurrentClass] = useState('7');
-  const [expandedRow, setExpandedRow] = useState(null);
-  const [guardians, setGuardians] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { currentClass, entities: guardians, loading, error, changeClass } = useGuardians();
+  const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
+  const { editingId, editFormData, saving, startEdit, cancelEdit, updateEditField, saveEdit } = 
+    useEntityEdit(guardians, () => {}, 'guardian');
+  const [localGuardians, setLocalGuardians] = useState([]);
 
+  // Sync and sort local state with hook state
   useEffect(() => {
-    const mockGuardian = [
-      {
-        first_name: 'John',
-        middle_name: 'Michael',
-        last_name: 'Smith',
-        guardian_of: 'Kaiser Smith',
-        grade:'7',
-        section:'1',
-        relation: 'Father',
-        email: 'john.smith@school.edu',
-        phone_number: '+1234567890',
-      }
-    ];
-    setGuardians(mockGuardian);
-    setLoading(false);
-  }, [currentClass]);
+  if (guardians && guardians.length > 0) {
+    const sortedGuardians = sortGuardians(guardians);
+    setLocalGuardians(sortedGuardians);
+  } else {
+    setLocalGuardians([]);
+  }
+}, [guardians]);
+
+  // Use sorted guardians for display
+  const sortedGuardians = useMemo(() => {
+    return localGuardians;
+  }, [localGuardians]);
 
   const handleClassChange = (className) => {
-    setCurrentClass(className);
-    setExpandedRow(null);
+    changeClass(className);
   };
 
-  const toggleCard = (guadianId) => {
-    if (expandedRow === guadianId) {
-      setExpandedRow(null);
-    } else {
-      setExpandedRow(guadianId);
+  const handleEditClick = (guardian, e) => {
+    e.stopPropagation();
+    startEdit(guardian);
+  };
+
+  const handleSaveEdit = async (guardianId, e) => {
+    if (e) e.stopPropagation();
+    
+    const result = await saveEdit(guardianId, currentClass, GuardianService.update);
+    
+    if (result.success) {
+      // Update local state
+      const updatedGuardians = await GuardianService.fetchAll();
+      const filteredGuardians = currentClass === 'all' 
+        ? updatedGuardians
+        : updatedGuardians.filter(g => g.grade === currentClass);
+      
+      // Sort the updated guardians
+      const sortedUpdatedGuardians = sortGuardians(filteredGuardians);
+      setLocalGuardians(sortedUpdatedGuardians);
     }
   };
 
-  const grades = ['7', '8', '9', '10', '11', '12'];
+  const handleRowClick = (guardianId, e) => {
+    const isEditing = editingId === guardianId;
+    const isInteractiveElement = e.target.closest('.edit-input') || 
+                                 e.target.closest('.action-button') ||
+                                 e.target.closest('button') ||
+                                 e.target.closest('input');
+    
+    if (!isEditing && !isInteractiveElement) {
+      toggleRow(guardianId);
+    }
+  };
+
+  const renderEditField = (guardian, fieldName) => {
+    if (editingId === guardian.id) {
+      return (
+        <input
+          type={fieldName === 'email' ? 'email' : 'text'}
+          name={fieldName}
+          value={editFormData[fieldName] || ''}
+          onChange={(e) => updateEditField(fieldName, e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className={`${styles.editInput} edit-input`}
+          placeholder={fieldName.replace('_', ' ')}
+        />
+      );
+    }
+    return fieldName === 'email' || fieldName === 'phone_number'
+      ? formatNA(guardian[fieldName])
+      : guardian[fieldName] || '';
+  };
+
+  const renderActionButtons = (guardian) => {
+    if (editingId === guardian.id) {
+      return (
+        <div className={`${styles.editActions} action-button`}>
+          <button 
+            onClick={(e) => handleSaveEdit(guardian.id, e)}
+            disabled={saving}
+            className={styles.saveBtn}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          <button 
+            onClick={() => cancelEdit()}
+            disabled={saving}
+            className={styles.cancelBtn}
+          >
+            Cancel
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.icon} onClick={(e) => handleEditClick(guardian, e)}>
+        <FontAwesomeIcon icon={faPenToSquare} className="action-button" />
+      </div>
+    );
+  };
+
+  const renderExpandedRow = (guardian) => (
+    <tr className={`${styles.expandRow} ${isRowExpanded(guardian.id) ? styles.expandRowActive : ''}`}>
+      <td colSpan="8">
+        <div 
+          className={`${styles.guardianCard} ${styles.expandableCard}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.guardianHeader}>
+            {guardian.first_name} {guardian.last_name}
+          </div>
+          <div className={styles.guardianInfo}>
+            <strong>Guardian Details</strong>
+          </div>
+          <div className={styles.guardianInfo}>
+            Full Name: {guardian.first_name} {guardian.middle_name} {guardian.last_name}
+          </div>
+          <div className={styles.guardianInfo}>
+            Guardian Of: {guardian.guardian_of}
+          </div>
+          <div className={styles.guardianInfo}>
+            Grade and Section: {guardian.grade}-{guardian.section}
+          </div>
+          <div className={styles.guardianInfo}>
+            Email: {formatNA(guardian.email)}
+          </div>
+          <div className={styles.guardianInfo}>
+            Phone: {formatNA(guardian.phone_number)}
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
+
+  const renderEditCell = (guardian) => (
+    <div className={styles.editCell}>
+      {editingId === guardian.id ? (
+        renderActionButtons(guardian)
+      ) : (
+        <div className={styles.icon}>
+          <FontAwesomeIcon 
+            icon={faPenToSquare} 
+            onClick={(e) => handleEditClick(guardian, e)}
+            className="action-button"
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className={styles.guardianTableContainer}>
+        <div className={styles.loading}>Loading guardians...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.guardianTableContainer}>
+        <div className={styles.error}>Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles.guardianTableContainer}>
+    <div className={styles.guardianTableContainer} ref={tableRef}>
       <div className={styles.guardianTable}>
         <div className={styles.classContainers}>
+          <Button 
+            label="All"
+            tabBottom={true}
+            height="xs"
+            width="xs-sm"
+            color="grades"
+            active={currentClass === 'all'}
+            onClick={() => handleClassChange('all')}
+          >
+            All
+          </Button>
+          
           {grades.map(grade => (
             <Button 
               key={grade}
@@ -65,89 +217,70 @@ const GuardianTable = () => {
           ))}
 
           <div className={styles.tableInfo}>
-              <p>Showing {guardians.length} teacher/s in Grade {currentClass}</p>
+            <p>Showing {sortedGuardians.length} guardian/s {currentClass !== 'all' ? `in Grade ${currentClass}` : 'across all grades'}</p>
           </div>
         </div>
 
-        <table className={styles.guardiansTable}>
-          <thead>
-            <tr>
-              <th>FIRST NAME</th>
-              <th>MIDDLE NAME</th>
-              <th>LAST NAME</th>
-              <th>GUARDIAN OF</th>
-              <th>RELATION</th>
-              <th>EMAIL ADDRESS</th>
-              <th>PHONE NO.</th>
-              <th>EDIT</th>
-              <th>DELETE</th>
-            </tr>
-          </thead>
-          <tbody>
-            {guardians.length === 0 ? (
+        <div className={styles.tableWrapper}>
+          <table className={styles.guardiansTable}>
+            <thead>
               <tr>
-                <td colSpan="11" className={styles.noGuardian}>
-                  No guardians found
-                </td>
+                <th>FIRST NAME</th>
+                <th>MIDDLE NAME</th>
+                <th>LAST NAME</th>
+                <th>GUARDIAN OF</th>
+                <th>GRADE & SECTION</th>
+                <th>EMAIL ADDRESS</th>
+                <th>PHONE NO.</th>
+                <th>EDIT</th>
               </tr>
-            ) : (
-              guardians.map(guardian => (
-                <React.Fragment key={guardian.id}>
-                  <tr 
-                    className={`${styles.studentRow} ${expandedRow === guardian.id ? styles.hiddenRow : ''}`}
-                    onClick={() => toggleCard(guardian.id)}
-                  >
-                    <td>{guardian.first_name}</td>
-                    <td>{guardian.middle_name}</td>
-                    <td>{guardian.last_name}</td>
-                    <td>{guardian.guardian_of} ({guardian.grade}-{guardian.section})</td>
-                    <td>{guardian.relation}</td>
-                    <td>{guardian.email || "NA"}</td>
-                    <td>{guardian.phone_number || "NA"}</td>
-                    <td>
-                      <div className={styles.icon}>
-                        <FontAwesomeIcon icon={faPenToSquare} />
-                      </div>
-                    </td>
-                    <td>
-                      <div className={styles.icon}>
-                        <FontAwesomeIcon icon={faTrashCan} />
-                      </div>
-                    </td>
-                  </tr>
+            </thead>
+            <tbody>
+              {sortedGuardians.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className={styles.noGuardian}>
+                    {currentClass === 'all' 
+                      ? 'No guardians found across all grades' 
+                      : `No guardians found in Grade ${currentClass}`}
+                  </td>
+                </tr>
+              ) : (
+                sortedGuardians.map((guardian, index) => {
+                  const visibleRowIndex = sortedGuardians
+                    .slice(0, index)
+                    .filter(g => !isRowExpanded(g.id))
+                    .length;
                   
-                  {expandedRow === guardian.id && (
-                    <tr 
-                      className={styles.expandRow}
-                      onClick={() => toggleCard(guardian.id)}
-                    >
-                      <td colSpan="9">
-                        <div className={`${styles.guardianCard} ${styles.expand} ${styles.show}`}>
-                          <div className={styles.guardianHeader}>
-                            {guardian.first_name} {guardian.last_name}
-                          </div>
-                          <div className={styles.guardianInfo}>
-                            <strong>Guardian Details</strong>
-                          </div>
-                          <div className={styles.guardianInfo}>Full Name: {guardian.first_name} {guardian.middle_name} {guardian.last_name}</div>
-                          <div className={styles.guardianInfo}>Guadian Of: {guardian.guardian_of}</div>
-                          <div className={styles.guardianInfo}>Grade and Section: {guardian.grade}-{guardian.section}</div>
-                          <div className={styles.guardianInfo}>Relation: {guardian.relation}</div>
-                          <div className={styles.guardianInfo}>Email: {guardian.email || 'NA'}</div>
-                          <div className={styles.guardianInfo}>Phone: {guardian.phone_number || 'NA'}</div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))
-            )}
-          </tbody>
-        </table>
+                  const rowColorClass = visibleRowIndex % 2 === 0 ? styles.rowEven : styles.rowOdd;
+                  
+                  return (
+                    <React.Fragment key={guardian.id}>
+                      {!isRowExpanded(guardian.id) && (
+                        <tr 
+                          className={`${styles.guardianRow} ${rowColorClass} ${editingId === guardian.id ? styles.editingRow : ''}`}
+                          onClick={(e) => handleRowClick(guardian.id, e)}
+                        >
+                          <td>{renderEditField(guardian, 'first_name')}</td>
+                          <td>{renderEditField(guardian, 'middle_name')}</td>
+                          <td>{renderEditField(guardian, 'last_name')}</td>
+                          <td>{guardian.guardian_of}</td>
+                          <td>{guardian.grade}-{guardian.section}</td>
+                          <td>{renderEditField(guardian, 'email')}</td>
+                          <td>{renderEditField(guardian, 'phone_number')}</td>
+                          <td>{renderEditCell(guardian)}</td>
+                        </tr>
+                      )}
+                      {renderExpandedRow(guardian)}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 };
-
 
 export default GuardianTable;

@@ -1,187 +1,451 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StudentService } from '../../../Utils/SupabaseHelpers';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useStudents } from '../../Hooks/useEntities'; 
+import { useEntityEdit } from '../../Hooks/useEntityEdit'; 
+import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
+import { useStudentActions } from '../../Hooks/useStudentActions'; 
+import { StudentService } from '../../../Utils/EntityService'; 
+import { grades, shouldHandleRowClick } from '../../../Utils/tableHelpers';
+import { sortEntities, sortStudents } from '../../../Utils/SortEntities'; 
+import { compareSections } from '../../../Utils/CompareHelpers'; 
 import { formatStudentName, formatGradeSection, formatDate, formatNA } from '../../../Utils/Formatters';
-import { validateStudentData } from '../../../Utils/StudentDataValidation';
 import Button from '../../UI/Buttons/Button/Button';
-import DeleteStudentModal from '../../Modals/DeleteStudentModal/DeleteStudentModal';
-import QRCodeModal from '../../Modals/QRCodeModal/QRCodeModal'; // Add this import
+import QRCodeModal from '../../Modals/QRCodeModal/QRCodeModal';
+import QRCodeUpdateWarningModal from '../../Modals/QRCodeUpdateWarningModal/QRCodeUpdateWarningModal';
 import styles from './StudentTable.module.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faQrcode, faPenToSquare, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCircle as farCircle } from "@fortawesome/free-regular-svg-icons";
+import { faQrcode, faPenToSquare, faTrashCan, faCircle as fasCircle } from "@fortawesome/free-solid-svg-icons";
+import { useToast } from '../../Toast/ToastContext/ToastContext';
 
-const StudentTable = () => {
-  const [currentClass, setCurrentClass] = useState('7');
-  const [expandedRow, setExpandedRow] = useState(null);
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [editingStudent, setEditingStudent] = useState(null);
-  const [editFormData, setEditFormData] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [studentToDelete, setStudentToDelete] = useState(null);
-  const [qrModalOpen, setQrModalOpen] = useState(false); // Add this state
-  const [selectedStudent, setSelectedStudent] = useState(null); // Add this state
-  const tableRef = useRef(null);
+const StudentTable = ({ 
+  searchTerm = '', 
+  selectedSection = '', 
+  onSectionsUpdate, 
+  onSelectedStudentsUpdate,
+  onStudentDataUpdate,
+  onGradeUpdate,
+  onClearSectionFilter,
+  onSingleDeleteClick,
+  refreshStudents,
+  refreshAllStudents // ADDED THIS PROP
+}) => {
+    
+  const { currentClass, entities: students, loading, error, changeClass, setEntities } = useStudents();
+  
+  // UPDATED: Use useEntityEdit instead of useStudentEdit
+  const { editingId: editingStudent, editFormData, saving, startEdit, cancelEdit, updateEditField, saveEdit } = useEntityEdit(
+    students, 
+    setEntities,
+    'student',
+    refreshAllStudents // ADDED THIS
+  );
+  
+  const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
+  const { 
+    qrModalOpen, setQrModalOpen, selectedStudent, 
+    handleQRCodeClick 
+  } = useStudentActions(setEntities);
 
-  useEffect(() => {
-    fetchStudents(currentClass);
-  }, [currentClass]);
+  const [updateWarningOpen, setUpdateWarningOpen] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState(null);
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [sectionInputValue, setSectionInputValue] = useState('');
+  const [sectionSuggestionsId] = useState(() => `sectionSuggestions_${Math.random().toString(36).substr(2, 9)}`);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (expandedRow && tableRef.current && !tableRef.current.contains(event.target)) {
-        setExpandedRow(null);
-      }
-    };
+  // Get all unique sections from all students for datalist suggestions
+  const allUniqueSections = useMemo(() => {
+    const sections = students
+      .map(student => student.section?.toString())
+      .filter(section => section && section.trim() !== '');
+    
+    const uniqueSections = [...new Set(sections)];
+    return uniqueSections.sort(compareSections);
+  }, [students]);
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [expandedRow]);
+  // Get filtered sections based on current input
+  const filteredSectionSuggestions = useMemo(() => {
+    if (!sectionInputValue) return allUniqueSections;
+    
+    const inputLower = sectionInputValue.toLowerCase();
+    return allUniqueSections.filter(section => 
+      section.toLowerCase().includes(inputLower)
+    );
+  }, [allUniqueSections, sectionInputValue]);
 
-  const fetchStudents = async (grade) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await StudentService.fetchByGrade(grade);
-      setStudents(data);
-    } catch (err) {
-      console.error('Error fetching students:', err);
-      setError('Failed to load students');
-      setStudents([]);
-    } finally {
-      setLoading(false);
+  // Get sections for current grade only (or all if 'all' is selected)
+  const availableSections = useMemo(() => {
+    if (currentClass === 'all') {
+      return allUniqueSections;
     }
-  };
+    
+    const sections = students
+      .filter(student => student.grade?.toString() === currentClass)
+      .map(student => student.section?.toString())
+      .filter(section => section && section.trim() !== '');
+    
+    const uniqueSections = [...new Set(sections)];
+    return uniqueSections.sort(compareSections);
+  }, [students, currentClass, allUniqueSections]);
+
+  useEffect(() => {
+    if (onGradeUpdate) {
+      onGradeUpdate(currentClass);
+    }
+  }, [currentClass, onGradeUpdate]);
+
+  useEffect(() => {
+    if (onSectionsUpdate) {
+      onSectionsUpdate(availableSections);
+    }
+  }, [availableSections, onSectionsUpdate]);
+
+  const filteredStudents = useMemo(() => {
+    let filtered = students;
+    
+    // Filter by section if selected
+    if (selectedSection) {
+      filtered = filtered.filter(student => 
+        student.section?.toString() === selectedSection
+      );
+    }
+    
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(student => 
+        student.lrn?.toLowerCase().includes(searchLower) ||
+        student.first_name?.toLowerCase().includes(searchLower) ||
+        student.middle_name?.toLowerCase().includes(searchLower) ||
+        student.last_name?.toLowerCase().includes(searchLower) ||
+        student.grade?.toString().toLowerCase().includes(searchLower) ||
+        student.section?.toString().toLowerCase().includes(searchLower) ||
+        student.email?.toLowerCase().includes(searchLower) ||
+        student.phone_number?.toLowerCase().includes(searchLower) ||
+        // Also search guardian fields
+        student.guardian_first_name?.toLowerCase().includes(searchLower) ||
+        student.guardian_last_name?.toLowerCase().includes(searchLower) ||
+        student.guardian_phone_number?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return filtered;
+  }, [students, searchTerm, selectedSection]);
+
+  const sortedStudents = useMemo(() => sortStudents(filteredStudents), [filteredStudents]);
+
+  const visibleSelectedStudents = useMemo(() => {
+    const visibleStudentIds = new Set(sortedStudents.map(student => student.id));
+    return selectedStudents.filter(id => visibleStudentIds.has(id));
+  }, [selectedStudents, sortedStudents]);
+
+  useEffect(() => {
+    if (onSelectedStudentsUpdate) {
+      onSelectedStudentsUpdate(visibleSelectedStudents);
+    }
+  }, [visibleSelectedStudents, onSelectedStudentsUpdate]);
+  
+  useEffect(() => {
+    if (onStudentDataUpdate) {
+      onStudentDataUpdate(students);
+    }
+  }, [students, onStudentDataUpdate]);
+
+  const { success } = useToast();
 
   const handleClassChange = (className) => {
-    setCurrentClass(className);
-    setExpandedRow(null);
-    setEditingStudent(null);
-  };
-
-  const toggleCard = (studentId) => {
-    if (expandedRow === studentId) {
-      setExpandedRow(null);
-    } else {
-      setExpandedRow(studentId);
+    changeClass(className);
+    toggleRow(null); 
+    cancelEdit(); 
+    setSelectedStudents([]); 
+    
+    if (selectedSection && onClearSectionFilter) {
+      onClearSectionFilter();
     }
   };
 
   const handleRowClick = (studentId, e) => {
-    if (editingStudent || e.target.closest('.edit-input') || e.target.closest('.action-button')) {
-      return;
+    if (shouldHandleRowClick(editingStudent, e.target)) {
+      toggleRow(studentId);
     }
-    toggleCard(studentId);
   };
-
-  const handleQRCodeClick = async (student, e) => {
-  e.stopPropagation();
-  
-  if (!student.qr_verification_token) {
-    try {
-      setLoading(true);
-      const updatedStudent = await StudentService.generateTokenForStudent(student.id);
-      setSelectedStudent(updatedStudent);
-      setQrModalOpen(true);
-    } catch (err) {
-      setError('Failed to generate QR code');
-    } finally {
-      setLoading(false);
-    }
-  } else {
-    setSelectedStudent(student);
-    setQrModalOpen(true);
-  }
-};
 
   const handleEditClick = (student, e) => {
     e.stopPropagation();
-    setEditingStudent(student.id);
-    setEditFormData({
-      student_id: student.student_id,
-      first_name: student.first_name,
-      middle_name: student.middle_name,
-      last_name: student.last_name,
-      grade: student.grade,
-      section: student.section,
-      email: student.email,
-      phone_number: student.phone_number
-    });
-    setExpandedRow(null);
-  };
-
-  const handleCancelEdit = (e) => {
-    if (e) e.stopPropagation();
-    setEditingStudent(null);
-    setEditFormData({});
+    startEdit(student);
+    setSectionInputValue(student.section || '');
+    toggleRow(null); 
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setEditFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    updateEditField(name, value);
+    
+    // Update section input value for filtering
+    if (name === 'section') {
+      setSectionInputValue(value);
+    }
+  };
+
+  const handleSelectChange = (e) => {
+    const { name, value } = e.target;
+    updateEditField(name, value);
+  };
+
+  // UPDATED: Save edit using StudentService
+  const handleSaveEdit = async (studentId, e) => {
+    if (e) e.stopPropagation();
+    
+    const student = students.find(s => s.id === studentId);
+    const criticalFieldsChanged = 
+      editFormData.lrn !== student.lrn ||
+      editFormData.first_name !== student.first_name ||
+      editFormData.last_name !== student.last_name ||
+      editFormData.grade !== student.grade ||
+      editFormData.section !== student.section;
+
+    if (criticalFieldsChanged) {
+      setPendingUpdate({ studentId, student });
+      setUpdateWarningOpen(true);
+    } else {
+      const result = await saveEdit(studentId, currentClass, StudentService.update.bind(new StudentService()));
+      if (result.success) {
+        success('Student information updated successfully');
+        if (result.gradeChanged) {
+          success(`Student moved to Grade ${editFormData.grade}`);
+        }
+        // NEW: Trigger refresh of current table view
+        if (refreshStudents) {
+          refreshStudents();
+        }
+      } else {
+        console.error(result.error);
+      }
+    }
+    // Reset section input value
+    setSectionInputValue('');
+  };
+
+  const handleConfirmUpdate = async () => {
+    if (pendingUpdate) {
+      const result = await saveEdit(pendingUpdate.studentId, currentClass, StudentService.update.bind(new StudentService()));
+      if (result.success) {
+        success('Student information updated successfully');
+        if (result.gradeChanged) {
+          success(`Student moved to Grade ${editFormData.grade}`);
+        }
+        // NEW: Trigger refresh of current table view
+        if (refreshStudents) {
+          refreshStudents();
+        }
+      } else {
+        console.error(result.error);
+      }
+      setPendingUpdate(null);
+      // Reset section input value
+      setSectionInputValue('');
+    }
   };
 
   const handleInputClick = (e) => {
     e.stopPropagation();
   };
 
-  const handleSaveEdit = async (studentId, e) => {
-    if (e) e.stopPropagation();
-    
-    try {
-      setSaving(true);
-      
-      const errors = validateStudentData(editFormData);
-      if (Object.keys(errors).length > 0) {
-        setError('Please fix validation errors: ' + Object.values(errors).join(', '));
-        return;
-      }
-
-      const updatedStudent = await StudentService.updateStudent(studentId, editFormData);
-      
-      setStudents(prevStudents => 
-        prevStudents.map(student => 
-          student.id === studentId ? updatedStudent : student
-        )
-      );
-
-      setEditingStudent(null);
-      setEditFormData({});
-      setError(null);
-      
-    } catch (err) {
-      console.error('Error updating student:', err);
-      setError('Failed to update student');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteClick = (student, e) => {
+  const handleQRCodeClickWithEvent = async (student, e) => {
     e.stopPropagation();
-    setStudentToDelete(student);
-    setDeleteModalOpen(true);
+    await handleQRCodeClick(student);
   };
 
-  const handleConfirmDelete = async (studentId) => {
-    try {
-      await StudentService.deleteStudent(studentId);
-      setStudents(prevStudents => 
-        prevStudents.filter(student => student.id !== studentId)
-      );
-    } catch (err) {
-      console.error('Error deleting student:', err);
-      setError('Failed to delete student');
+  const handleDeleteClickWithEvent = (student, e) => {
+    e.stopPropagation();
+    if (onSingleDeleteClick) {
+      onSingleDeleteClick(student);
     }
   };
 
-  const grades = ['7', '8', '9', '10', '11', '12'];
+  const handleStudentSelect = (studentId, e) => {
+    e.stopPropagation();
+    setSelectedStudents(prev => {
+      if (prev.includes(studentId)) {
+        return prev.filter(id => id !== studentId);
+      } else {
+        return [...prev, studentId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    const allVisibleStudentIds = sortedStudents.map(student => student.id);
+    
+    if (allVisibleStudentIds.every(id => selectedStudents.includes(id))) {
+      setSelectedStudents(prev => prev.filter(id => !allVisibleStudentIds.includes(id)));
+    } else {
+      setSelectedStudents(prev => {
+        const newSelection = new Set([...prev, ...allVisibleStudentIds]);
+        return Array.from(newSelection);
+      });
+    }
+  };
+
+  const allVisibleSelected = sortedStudents.length > 0 && 
+    sortedStudents.every(student => selectedStudents.includes(student.id));
+
+  const renderEditInput = (fieldName, type = 'text') => (
+    <input
+      type={type}
+      name={fieldName}
+      value={editFormData[fieldName] || ''}
+      onChange={handleInputChange}
+      onClick={handleInputClick}
+      className={`${styles.editInput} edit-input`}
+    />
+  );
+
+  // UPDATED: Add guardian field inputs
+  const renderGuardianEditInput = (fieldName, type = 'text') => (
+    <input
+      type={type}
+      name={fieldName}
+      value={editFormData[fieldName] || ''}
+      onChange={handleInputChange}
+      onClick={handleInputClick}
+      className={`${styles.editInput} edit-input`}
+      placeholder={`Guardian ${fieldName.replace('guardian_', '').replace('_', ' ')}`}
+    />
+  );
+
+  const renderGradeDropdown = () => (
+    <select
+      name="grade"
+      value={editFormData.grade || ''}
+      onChange={handleSelectChange}
+      onClick={handleInputClick}
+      className={`${styles.editSelect} edit-input`}
+    >
+      <option value="">Select Grade</option>
+      {grades.map(grade => (
+        <option key={grade} value={grade}>
+          {grade}
+        </option>
+      ))}
+    </select>
+  );
+
+  const renderSectionInput = () => (
+    <>
+      <input
+        type="text"
+        name="section"
+        list={sectionSuggestionsId}
+        value={editFormData.section || ''}
+        onChange={handleInputChange}
+        onClick={handleInputClick}
+        className={`${styles.editInput} edit-input`}
+        placeholder="Enter section"
+        autoComplete="off"
+      />
+      <datalist id={sectionSuggestionsId}>
+        {filteredSectionSuggestions.map(section => (
+          <option key={section} value={section} />
+        ))}
+      </datalist>
+    </>
+  );
+
+  // UPDATED: Handle guardian fields in edit mode
+  const renderField = (student, fieldName, isEditable = true) => {
+    if (editingStudent === student.id && isEditable) {
+      if (fieldName === 'grade') {
+        return renderGradeDropdown();
+      } else if (fieldName === 'section') {
+        return renderSectionInput();
+      } else if (fieldName.startsWith('guardian_')) {
+        return renderGuardianEditInput(fieldName, fieldName.includes('email') ? 'email' : 'text');
+      }
+      return renderEditInput(fieldName, fieldName === 'email' ? 'email' : 'text');
+    }
+    return fieldName === 'email' || fieldName === 'phone_number' || fieldName.startsWith('guardian_')
+      ? formatNA(student[fieldName])
+      : student[fieldName];
+  };
+
+  const renderActionButtons = (student) => (
+    <div className={`${styles.editActions} action-button`}>
+      <button 
+        onClick={(e) => handleSaveEdit(student.id, e)}
+        disabled={saving}
+        className={styles.saveBtn}
+      >
+        {saving ? 'Saving...' : 'Save'}
+      </button>
+      <button 
+        onClick={() => {
+          cancelEdit();
+          setSectionInputValue('');
+        }}
+        disabled={saving}
+        className={styles.cancelBtn}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+
+  const renderEditCell = (student) => (
+    <div className={styles.editCell}>
+      {editingStudent === student.id ? (
+        renderActionButtons(student)
+      ) : (
+        <div className={styles.icon}>
+          <FontAwesomeIcon 
+            icon={faPenToSquare} 
+            onClick={(e) => handleEditClick(student, e)}
+            className="action-button"
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  // UPDATED: Add guardian info to expanded row
+  const renderExpandedRow = (student) => (
+    <tr className={`${styles.expandRow} ${isRowExpanded(student.id) ? styles.expandRowActive : ''}`}>
+      <td colSpan="12">
+        <div 
+          className={`${styles.studentCard} ${styles.expandableCard}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.studentHeader}>
+            {formatStudentName(student)}
+          </div>
+          <div className={styles.studentInfo}>
+            <strong>Student Details</strong>
+          </div>
+          <div className={styles.studentInfo}>LRN: {student.lrn}</div>
+          <div className={styles.studentInfo}>Grade & Section: {formatGradeSection(student)}</div>
+          <div className={styles.studentInfo}>Full Name: {formatStudentName(student)}</div>
+          <div className={styles.studentInfo}>Email: {formatNA(student.email)}</div>
+          <div className={styles.studentInfo}>Phone: {formatNA(student.phone_number)}</div>
+          
+          <div className={styles.studentInfo}>
+            <strong>Guardian Information</strong>
+          </div>
+          <div className={styles.studentInfo}>
+            Name: {formatNA(student.guardian_first_name)} {formatNA(student.guardian_middle_name)} {formatNA(student.guardian_last_name)}
+          </div>
+          <div className={styles.studentInfo}>
+            Phone: {formatNA(student.guardian_phone_number)}
+          </div>
+          <div className={styles.studentInfo}>
+            Email: {formatNA(student.guardian_email)}
+          </div>
+          
+          <div className={styles.studentInfo}>
+            Added: {formatDate(student.created_at)}
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
 
   if (loading) {
     return (
@@ -203,6 +467,19 @@ const StudentTable = () => {
     <div className={styles.studentTableContainer} ref={tableRef}>
       <div className={styles.studentsTable}>
         <div className={styles.classContainers}>
+          {/* ADDED: "All" button */}
+          <Button 
+            label="All"  // Already changed in the code above
+            tabBottom={true}
+            height="xs"
+            width="xs-sm"
+            color="grades"
+            active={currentClass === 'all'}
+            onClick={() => handleClassChange('all')}
+          >
+            All
+          </Button>
+          
           {grades.map(grade => (
             <Button 
               key={grade}
@@ -219,7 +496,17 @@ const StudentTable = () => {
           ))}
 
           <div className={styles.tableInfo}>
-              <p>Showing {students.length} student/s in Grade {currentClass}</p>
+            <p>
+              {selectedSection 
+                ? `Showing ${sortedStudents.length} student/s in Section ${selectedSection}${searchTerm ? ` matching "${searchTerm}"` : ''}`
+                : searchTerm 
+                  ? `Found ${sortedStudents.length} student/s matching "${searchTerm}" ${currentClass === 'all' ? 'across all grades' : `in Grade ${currentClass}`}`
+                  : currentClass === 'all'
+                    ? `Showing ${sortedStudents.length} student/s across all grades`
+                    : `Showing ${sortedStudents.length} student/s in Grade ${currentClass}`
+              }
+              {visibleSelectedStudents.length > 0 && ` (${visibleSelectedStudents.length} selected)`}
+            </p>
           </div>
         </div>
 
@@ -227,7 +514,17 @@ const StudentTable = () => {
           <table className={styles.studentsTable}>
             <thead>
               <tr>
-                <th>ID.NO</th>
+                <th>
+                  <div className={styles.icon} onClick={handleSelectAll}>
+                    <FontAwesomeIcon 
+                      icon={allVisibleSelected ? fasCircle : farCircle} 
+                      style={{ cursor: 'pointer' ,
+                        color: allVisibleSelected ? '#007bff' : '' 
+                      }}
+                    />
+                  </div>
+                </th>
+                <th>LRN</th>
                 <th>FIRST NAME</th>
                 <th>MIDDLE NAME</th>
                 <th>LAST NAME</th>
@@ -241,226 +538,100 @@ const StudentTable = () => {
               </tr>
             </thead>
             <tbody>
-              {students.length === 0 ? (
+              {sortedStudents.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className={styles.noStudents}>
-                    No students found in Grade {currentClass}
+                  <td colSpan="12" className={styles.noStudents}>
+                    {searchTerm 
+                      ? `No students found matching "${searchTerm}" ${currentClass === 'all' ? 'across all grades' : `in Grade ${currentClass}`}`
+                      : currentClass === 'all'
+                        ? 'No students found across all grades'
+                        : `No students found in Grade ${currentClass}`
+                    }
                   </td>
                 </tr>
               ) : (
-                students.map(student => (
-                  <React.Fragment key={student.id}>
-                    <tr 
-                      className={`${styles.studentRow} ${expandedRow === student.id ? styles.hiddenRow : ''} ${editingStudent === student.id ? styles.editingRow : ''}`}
-                      onClick={(e) => handleRowClick(student.id, e)}
-                    >
-                      <td>
-                        {editingStudent === student.id ? (
-                          <input
-                            type="text"
-                            name="student_id"
-                            value={editFormData.student_id || ''}
-                            onChange={handleInputChange}
-                            onClick={handleInputClick}
-                            className={`${styles.editInput} edit-input`}
-                          />
-                        ) : (
-                          student.student_id
-                        )}
-                      </td>
-                      <td>
-                        {editingStudent === student.id ? (
-                          <input
-                            type="text"
-                            name="first_name"
-                            value={editFormData.first_name || ''}
-                            onChange={handleInputChange}
-                            onClick={handleInputClick}
-                            className={`${styles.editInput} edit-input`}
-                          />
-                        ) : (
-                          student.first_name
-                        )}
-                      </td>
-                      <td>
-                        {editingStudent === student.id ? (
-                          <input
-                            type="text"
-                            name="middle_name"
-                            value={editFormData.middle_name || ''}
-                            onChange={handleInputChange}
-                            onClick={handleInputClick}
-                            className={`${styles.editInput} edit-input`}
-                          />
-                        ) : (
-                          student.middle_name
-                        )}
-                      </td>
-                      <td>
-                        {editingStudent === student.id ? (
-                          <input
-                            type="text"
-                            name="last_name"
-                            value={editFormData.last_name || ''}
-                            onChange={handleInputChange}
-                            onClick={handleInputClick}
-                            className={`${styles.editInput} edit-input`}
-                          />
-                        ) : (
-                          student.last_name
-                        )}
-                      </td>
-                      <td>
-                        {editingStudent === student.id ? (
-                          <input
-                            type="text"
-                            name="grade"
-                            value={editFormData.grade || ''}
-                            onChange={handleInputChange}
-                            onClick={handleInputClick}
-                            className={`${styles.editInput} edit-input`}
-                          />
-                        ) : (
-                          student.grade
-                        )}
-                      </td>
-                      <td>
-                        {editingStudent === student.id ? (
-                          <input
-                            type="text"
-                            name="section"
-                            value={editFormData.section || ''}
-                            onChange={handleInputChange}
-                            onClick={handleInputClick}
-                            className={`${styles.editInput} edit-input`}
-                          />
-                        ) : (
-                          student.section
-                        )}
-                      </td>
-                      <td>
-                        {editingStudent === student.id ? (
-                          <input
-                            type="email"
-                            name="email"
-                            value={editFormData.email || ''}
-                            onChange={handleInputChange}
-                            onClick={handleInputClick}
-                            className={`${styles.editInput} edit-input`}
-                          />
-                        ) : (
-                          formatNA(student.email)
-                        )}
-                      </td>
-                      <td>
-                        {editingStudent === student.id ? (
-                          <input
-                            type="text"
-                            name="phone_number"
-                            value={editFormData.phone_number || ''}
-                            onChange={handleInputChange}
-                            onClick={handleInputClick}
-                            className={`${styles.editInput} edit-input`}
-                          />
-                        ) : (
-                          formatNA(student.phone_number)
-                        )}
-                      </td>
-                      <td>
-                        <div className={styles.icon}>
-                          <FontAwesomeIcon 
-                            icon={faQrcode} 
-                            onClick={(e) => handleQRCodeClick(student, e)} // Updated this line
-                            className="action-button"
-                            style={{ cursor: 'pointer' }}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <div className={styles.editCell}>
-                          {editingStudent === student.id ? (
-                            <div className={`${styles.editActions} action-button`}>
-                              <button 
-                                onClick={(e) => handleSaveEdit(student.id, e)}
-                                disabled={saving}
-                                className={styles.saveBtn}
-                              >
-                                Save
-                              </button>
-                              <button 
-                                onClick={handleCancelEdit}
-                                disabled={saving}
-                                className={styles.cancelBtn}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <div className={styles.icon}>
+                sortedStudents.map((student, index) => {
+                  
+                  const visibleRowIndex = sortedStudents
+                    .slice(0, index)
+                    .filter(s => !isRowExpanded(s.id))
+                    .length;
+                  
+                  const rowColorClass = visibleRowIndex % 2 === 0 ? styles.rowEven : styles.rowOdd;
+                  const isSelected = selectedStudents.includes(student.id);
+
+                  return (
+                    <React.Fragment key={student.id}>
+                      {!isRowExpanded(student.id) && (
+                        <tr 
+                          className={`${styles.studentRow} ${rowColorClass} ${editingStudent === student.id ? styles.editingRow : ''} ${isSelected ? styles.selectedRow : ''}`}
+                          onClick={(e) => handleRowClick(student.id, e)}
+                        >
+                          <td>
+                            <div className={styles.icon} onClick={(e) => handleStudentSelect(student.id, e)}>
                               <FontAwesomeIcon 
-                                icon={faPenToSquare} 
-                                onClick={(e) => handleEditClick(student, e)}
-                                className="action-button"
+                                icon={isSelected ? fasCircle : farCircle} 
+                                style={{ 
+                                  cursor: 'pointer', 
+                                  color: isSelected ? '#007bff' : '' 
+                                }}
                               />
                             </div>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className={styles.icon}>
-                          <FontAwesomeIcon 
-                            icon={faTrashCan} 
-                            className="action-button"
-                            onClick={(e) => handleDeleteClick(student, e)}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                    
-                    {expandedRow === student.id && (
-                      <tr className={styles.expandRow}>
-                        <td colSpan="11">
-                          <div 
-                            className={`${styles.studentCard} ${styles.expand} ${styles.show}`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className={styles.studentHeader}>
-                              {formatStudentName(student)}
+                          </td>
+                          <td>{renderField(student, 'lrn')}</td>
+                          <td>{renderField(student, 'first_name')}</td>
+                          <td>{renderField(student, 'middle_name')}</td>
+                          <td>{renderField(student, 'last_name')}</td>
+                          <td>{renderField(student, 'grade')}</td>
+                          <td>{renderField(student, 'section')}</td>
+                          <td>{renderField(student, 'email')}</td>
+                          <td>{renderField(student, 'phone_number')}</td>
+                          <td>
+                            <div className={styles.icon}>
+                              <FontAwesomeIcon 
+                                icon={faQrcode} 
+                                onClick={(e) => handleQRCodeClickWithEvent(student, e)} 
+                                className="action-button"
+                                style={{ cursor: 'pointer' }}
+                              />
                             </div>
-                            <div className={styles.studentInfo}>
-                              <strong>Student Details</strong>
+                          </td>
+                          <td>{renderEditCell(student)}</td>
+                          <td>
+                            <div className={styles.icon}>
+                              <FontAwesomeIcon 
+                                icon={faTrashCan} 
+                                className="action-button"
+                                onClick={(e) => handleDeleteClickWithEvent(student, e)}
+                              />
                             </div>
-                            <div className={styles.studentInfo}>Student ID: {student.student_id}</div>
-                            <div className={styles.studentInfo}>Grade & Section: {formatGradeSection(student)}</div>
-                            <div className={styles.studentInfo}>Full Name: {formatStudentName(student)}</div>
-                            <div className={styles.studentInfo}>Email: {formatNA(student.email)}</div>
-                            <div className={styles.studentInfo}>Phone: {formatNA(student.phone_number)}</div>
-                            <div className={styles.studentInfo}>
-                              Added: {formatDate(student.created_at)}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))
+                          </td>
+                        </tr>
+                      )}
+                      {renderExpandedRow(student)}
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <DeleteStudentModal
-        isOpen={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        student={studentToDelete}
-        onConfirm={handleConfirmDelete}
-      />
-
       <QRCodeModal
         isOpen={qrModalOpen}
         onClose={() => setQrModalOpen(false)}
         student={selectedStudent}
+      />
+
+      <QRCodeUpdateWarningModal
+        isOpen={updateWarningOpen}
+        onClose={() => {
+          setUpdateWarningOpen(false);
+          setPendingUpdate(null);
+        }}
+        student={pendingUpdate?.student}
+        onConfirm={handleConfirmUpdate}
       />
     </div>
   );

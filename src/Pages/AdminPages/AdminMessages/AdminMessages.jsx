@@ -7,8 +7,8 @@ import MessageIcon from '@mui/icons-material/Message';
 function AdminMessages() {
   return (
     <main className={styles.main}>
-      <PageLabel icon={<MessageIcon sx={{ fontSize: 50, mb: -1.5 }} />}   label="Messages"></PageLabel>
-      <SectionLabel label="Message Records"></SectionLabel>
+      <PageLabel icon={<MessageIcon sx={{ fontSize: 50, mb: -1.5 }} />}   label="Notifications"></PageLabel>
+      <SectionLabel label="Notification Records"></SectionLabel>
       <MessageTable></MessageTable>
     </main>
   );

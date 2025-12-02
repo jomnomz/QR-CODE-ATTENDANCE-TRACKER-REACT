@@ -1,40 +1,108 @@
 import Modal from '../Modal/Modal.jsx';
 import styles from './DeleteStudentModal.module.css';
 import Button from '../../UI/Buttons/Button/Button.jsx';
+import { formatGradeSection, formatStudentName } from '../../../Utils/Formatters.js';
+import { useToast } from '../../Toast/ToastContext/ToastContext.jsx'; 
+import InfoBox from '../../UI/InfoBoxes/InfoBox/InfoBox.jsx';
+import StudentList from '../../List/StudentList/StudentList.jsx';
+import TitleModalLabel from '../../UI/Labels/TitleModalLabel/TitleModalLabel.jsx';
+import MessageModalLabel from '../../UI/Labels/MessageModalLabel/MessageModalLabel.jsx';
 
-function DeleteStudentModal({ isOpen, onClose, student, onConfirm }) {
-  // Don't do early return here - let Modal handle the animation
-  if (!student) return null; // Only return null if student is null
+function DeleteStudentModal({ 
+  isOpen, 
+  onClose, 
+  student, // For single deletion
+  selectedStudents = [], // For bulk deletion
+  studentData = [], // For bulk deletion to show names
+  onConfirm,
+  onConfirmBulk,
+  currentFilter = '',
+  currentSection = '',
+  currentGrade = ''
+}) {
+  const { info } = useToast(); 
+  
+  const isBulkDelete = selectedStudents.length > 0;
+  const deleteCount = isBulkDelete ? selectedStudents.length : 1;
+  
+  // Don't render anything if modal is not open OR if it's bulk delete but no students selected
+  if (!isOpen) return null;
+  if (!isBulkDelete && !student) return null; 
 
-  const handleConfirm = () => {
-    onConfirm(student.id);
-    onClose();
+  const handleConfirm = async () => {
+    try {
+      if (isBulkDelete) {
+        await onConfirmBulk?.(selectedStudents);
+        info(`${deleteCount} student${deleteCount !== 1 ? 's' : ''} successfully deleted`);
+      } else {
+        await onConfirm?.(student.id);
+        info('1 student successfully deleted');
+      }
+      onClose();
+    } catch (error) {
+      console.error('Error in deletion:', error);
+      onClose();
+    }
   };
+
+  const getContextDescription = () => {
+    if (currentSection) {
+      return `from Section ${currentSection}`;
+    }
+    if (currentFilter) {
+      return `matching "${currentFilter}"`;
+    }
+    return `from Grade ${currentGrade}`;
+  };
+
+  // Get actual student objects from IDs
+  const selectedStudentObjects = isBulkDelete 
+    ? selectedStudents
+        .map(studentId => studentData.find(s => s.id === studentId))
+        .filter(student => student !== undefined)
+    : [];
 
   return (
     <Modal size="md" isOpen={isOpen} onClose={onClose}>
       <div className={styles.modalContainer}>
-        <h2 className={styles.title}>Delete Student</h2>
+        <TitleModalLabel>
+          {isBulkDelete ? `Delete ${deleteCount} Selected Students` : 'Delete Student'}
+        </TitleModalLabel>
         
-        <div className={styles.message}>
-          Are you sure you want to delete this student?
-        </div>
+        <MessageModalLabel >
+          {isBulkDelete ? (
+            `Are you sure you want to delete ${deleteCount} student${deleteCount !== 1 ? 's' : ''} ${getContextDescription()}?`
+          ) : (
+            'Are you sure you want to delete this student?'
+          )}
+        </MessageModalLabel>
         
-        <div className={styles.studentInfo}>
-          <strong>{student.student_id} | {student.first_name} {student.last_name} | Grade {student.grade}- {student.section}</strong>
-        </div>
+        {isBulkDelete ? (
+          <StudentList 
+            students={selectedStudentObjects}
+            variant="multiple"
+            title="Students to be deleted"
+          />
+        ) : (
+          <StudentList 
+            students={[student]}
+            variant="single"
+            title="Student to be deleted"
+          />
+        )}
 
-        <div className={styles.warning}>
-          This action cannot be undone.
-        </div>
+        <InfoBox type="warning">
+          <strong>Warning:</strong> This action cannot be undone. All student data, including QR codes, will be permanently removed.
+        </InfoBox>
 
         <div className={styles.buttonGroup}>
           <Button
             label="Delete"
             color="danger"
             onClick={handleConfirm}
-            width="sm"
+            width="xs"
             height="sm"
+            disabled={isBulkDelete && selectedStudents.length === 0}
           />
           <Button 
             label="Cancel"
@@ -49,4 +117,4 @@ function DeleteStudentModal({ isOpen, onClose, student, onConfirm }) {
   );
 }
 
-export default DeleteStudentModal;
+export default DeleteStudentModal

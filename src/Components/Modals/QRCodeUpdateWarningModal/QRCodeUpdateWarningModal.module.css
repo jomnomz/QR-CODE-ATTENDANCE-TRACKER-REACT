@@ -1,0 +1,12 @@
+.modalContainer {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 1rem;
+  justify-content: end;
+}
