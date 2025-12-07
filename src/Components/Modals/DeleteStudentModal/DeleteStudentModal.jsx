@@ -1,10 +1,9 @@
 import Modal from '../Modal/Modal.jsx';
 import styles from './DeleteStudentModal.module.css';
 import Button from '../../UI/Buttons/Button/Button.jsx';
-import { formatGradeSection, formatStudentName } from '../../../Utils/Formatters.js';
 import { useToast } from '../../Toast/ToastContext/ToastContext.jsx'; 
 import InfoBox from '../../UI/InfoBoxes/InfoBox/InfoBox.jsx';
-import StudentList from '../../List/StudentList/StudentList.jsx';
+import EntityList from '../../List/EntityList/EntityList.jsx';
 import TitleModalLabel from '../../UI/Labels/TitleModalLabel/TitleModalLabel.jsx';
 import MessageModalLabel from '../../UI/Labels/MessageModalLabel/MessageModalLabel.jsx';
 
@@ -25,7 +24,6 @@ function DeleteStudentModal({
   const isBulkDelete = selectedStudents.length > 0;
   const deleteCount = isBulkDelete ? selectedStudents.length : 1;
   
-  // Don't render anything if modal is not open OR if it's bulk delete but no students selected
   if (!isOpen) return null;
   if (!isBulkDelete && !student) return null; 
 
@@ -69,7 +67,7 @@ function DeleteStudentModal({
           {isBulkDelete ? `Delete ${deleteCount} Selected Students` : 'Delete Student'}
         </TitleModalLabel>
         
-        <MessageModalLabel >
+        <MessageModalLabel>
           {isBulkDelete ? (
             `Are you sure you want to delete ${deleteCount} student${deleteCount !== 1 ? 's' : ''} ${getContextDescription()}?`
           ) : (
@@ -78,16 +76,18 @@ function DeleteStudentModal({
         </MessageModalLabel>
         
         {isBulkDelete ? (
-          <StudentList 
-            students={selectedStudentObjects}
+          <EntityList 
+            entities={selectedStudentObjects}
             variant="multiple"
             title="Students to be deleted"
+            entityType="student"
           />
         ) : (
-          <StudentList 
-            students={[student]}
+          <EntityList 
+            entities={[student]}
             variant="single"
             title="Student to be deleted"
+            entityType="student"
           />
         )}
 
@@ -117,4 +117,4 @@ function DeleteStudentModal({
   );
 }
 
-export default DeleteStudentModal
+export default DeleteStudentModal;

@@ -9,8 +9,6 @@ import Input from '../../../Components/UI/Input/Input.jsx';
 import DropDownButton from '../../../Components/UI/Buttons/DropDownButton/DropDownButton.jsx';
 import ActionsDropdownButton from '../../../Components/UI/Buttons/ActionsDropDownButton/ActionsDropDownButton.jsx';
 import DeleteStudentModal from '../../../Components/Modals/DeleteStudentModal/DeleteStudentModal.jsx';
-import PromoteModal from '../../../Components/Modals/PromoteModal/PromoteModal.jsx';
-import MoveSectionModal from '../../../Components/Modals/MoveSectionModal.jsx/MoveSectionModal.jsx';
 import DownloadQRModal from '../../../Components/Modals/DownloadQRModal/DownloadQRModal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {faUsers} from "@fortawesome/free-solid-svg-icons";
@@ -31,8 +29,6 @@ function AdminStudents() {
   const [allStudents, setAllStudents] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
-  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
   // Create an instance of StudentService
@@ -42,7 +38,6 @@ function AdminStudents() {
   const fetchAllStudents = useCallback(async () => {
     try {
       console.log('🔄 Fetching ALL students from all grades...');
-      // Use fetchAll() method from the instantiated service
       const allStudentsData = await studentService.fetchAll();
       setAllStudents(allStudentsData);
       console.log('✅ All students loaded:', allStudentsData.length);
@@ -99,18 +94,6 @@ function AdminStudents() {
   const handleDeleteSelected = (count, description) => {
     setDeleteModalMode('bulk');
     setIsDeleteModalOpen(true);
-  };
-
-  const handlePromoteSelected = (count, description) => {
-    if (count > 0) {
-      setIsPromoteModalOpen(true);
-    }
-  };
-
-  const handleMoveSelected = (count, description) => {
-    if (count > 0) {
-      setIsMoveModalOpen(true);
-    }
   };
 
   const handleDownloadQR = (count, description) => {
@@ -187,75 +170,6 @@ function AdminStudents() {
     }
   };
 
-  // Promote students API function
-  const promoteStudentsAPI = async (studentIds, nextGrade, targetSection) => {
-    try {
-      console.log('🔄 Promoting students:', studentIds, 'to grade', nextGrade, 'section', targetSection);
-      
-      const updatePromises = studentIds.map(studentId => 
-        studentService.update(studentId, { 
-          grade: nextGrade, 
-          section: targetSection 
-        })
-      );
-      
-      await Promise.all(updatePromises);
-      
-      return { success: true };
-    } catch (err) {
-      console.error('❌ Error promoting students:', err);
-      throw new Error(`Failed to promote students: ${err.message}`);
-    }
-  };
-
-  // Move students API function
-  const moveStudentsAPI = async (studentIds, targetSection) => {
-    try {
-      console.log('🔄 Moving students:', studentIds, 'to section', targetSection);
-      
-      const updatePromises = studentIds.map(studentId => 
-        studentService.update(studentId, { 
-          section: targetSection 
-        })
-      );
-      
-      await Promise.all(updatePromises);
-      
-      return { success: true };
-    } catch (err) {
-      console.error('❌ Error moving students:', err);
-      throw new Error(`Failed to move students: ${err.message}`);
-    }
-  };
-
-  // Handle promote confirmation
-  const handleConfirmPromote = async (studentIds, nextGrade, targetSection) => {
-    try {
-      await promoteStudentsAPI(studentIds, nextGrade, targetSection);
-      success(`${studentIds.length} students promoted to Grade ${nextGrade}, Section ${targetSection}`);
-      
-      await fetchAllStudents();
-      setRefreshTrigger(prev => prev + 1);
-      
-    } catch (err) {
-      toastError(`Failed to promote: ${err.message}`);
-    }
-  };
-
-  // Handle move confirmation
-  const handleConfirmMove = async (studentIds, targetSection) => {
-    try {
-      await moveStudentsAPI(studentIds, targetSection);
-      success(`${studentIds.length} students moved to Section ${targetSection}`);
-      
-      await fetchAllStudents();
-      setRefreshTrigger(prev => prev + 1);
-      
-    } catch (err) {
-      toastError(`Failed to move students: ${err.message}`);
-    }
-  };
-
   return (
     <main className={styles.main}>
       <PageLabel icon={<FontAwesomeIcon icon={faUsers} />} label="Students"></PageLabel>
@@ -279,19 +193,20 @@ function AdminStudents() {
             currentSection={selectedSection}
             currentGrade={currentGrade}
             onDeleteSelected={handleDeleteSelected}
-            onPromoteSelected={handlePromoteSelected}
-            onMoveSelected={handleMoveSelected}
             onDownloadQR={handleDownloadQR}
           />
         </div>
         <Button color="success" height="sm" width="xs" label="Create" onClick={() => {setIsOpen(true);}}></Button>
       </div>
       
-      <FileUploadModal 
-        isOpen={isOpen} 
-        type="student" 
+      <FileUploadModal
+        isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        onUploadSuccess={handleUploadSuccess}
+        entityType="student"
+        onUploadSuccess={(newStudents) => {
+          // Handle new students
+          refreshStudents();
+        }}
       />
       
         <StudentTable 
@@ -324,26 +239,6 @@ function AdminStudents() {
         currentFilter={searchTerm}
         currentSection={selectedSection}
         currentGrade={currentGrade}
-      />
-
-      <PromoteModal
-        isOpen={isPromoteModalOpen}
-        onClose={() => setIsPromoteModalOpen(false)}
-        selectedStudents={selectedStudents}
-        studentData={allStudents}
-        onConfirm={handleConfirmPromote}
-        currentGrade={currentGrade}
-        allStudents={allStudents}
-      />
-
-      <MoveSectionModal
-        isOpen={isMoveModalOpen}
-        onClose={() => setIsMoveModalOpen(false)}
-        selectedStudents={selectedStudents}
-        studentData={allStudents}
-        onConfirm={handleConfirmMove}
-        currentGrade={currentGrade}
-        allStudents={allStudents}
       />
 
       <DownloadQRModal

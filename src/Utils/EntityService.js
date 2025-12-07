@@ -46,21 +46,102 @@ export class EntityService {
     if (error) throw error;
     return { success: true };
   }
+
+  async create(data) {
+    const { data: newData, error } = await supabase
+      .from(this.tableName)
+      .insert(data)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return newData;
+  }
 }
 
-// Student-specific service (extends EntityService)
+// Student-specific service
 export class StudentService extends EntityService {
   constructor() {
     super('students');
   }
 
-  // ADD THIS METHOD - for fetching all students
-  async fetchAllStudents() {
-    return this.fetchAll();
+  async fetchAll() {
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        created_by_user:users!students_created_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        ),
+        updated_by_user:users!students_updated_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        )
+      `);
+    
+    if (error) throw error;
+    return data || [];
   }
 
   async fetchByGrade(grade) {
-    return this.fetchByField('grade', grade);
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        created_by_user:users!students_created_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        ),
+        updated_by_user:users!students_updated_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        )
+      `)
+      .eq('grade', grade);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  async update(id, updates) {
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .update(updates)
+      .eq('id', id)
+      .select(`
+        *,
+        created_by_user:users!students_created_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        ),
+        updated_by_user:users!students_updated_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        )
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
   }
 
   async generateTokenForStudent(id) {
@@ -69,11 +150,75 @@ export class StudentService extends EntityService {
   }
 }
 
-// Guardian data extraction from students table
-export class GuardianService {
-  static async fetchAll() {
+// Teacher-specific service
+export class TeacherService extends EntityService {
+  constructor() {
+    super('teachers');
+  }
+
+  async fetchAll() {
     const { data, error } = await supabase
-      .from('students')
+      .from(this.tableName)
+      .select(`
+        *,
+        created_by_user:users!teachers_created_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        ),
+        updated_by_user:users!teachers_updated_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        )
+      `);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  async update(id, updates) {
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .update(updates)
+      .eq('id', id)
+      .select(`
+        *,
+        created_by_user:users!teachers_created_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        ),
+        updated_by_user:users!teachers_updated_by_fkey(
+          user_id,
+          username,
+          email,
+          first_name,
+          last_name
+        )
+      `)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  }
+}
+
+// Guardian service
+export class GuardianService extends EntityService {
+  constructor() {
+    super('students'); // Still uses students table but transforms data
+  }
+
+  async fetchAll() {
+    const { data, error } = await supabase
+      .from(this.tableName)
       .select(`
         id,
         first_name,
@@ -89,26 +234,12 @@ export class GuardianService {
     
     if (error) throw error;
     
-    // Transform to guardian format
-    return data.map(student => ({
-      id: student.id,
-      // Guardian info
-      first_name: student.guardian_first_name,
-      middle_name: student.guardian_middle_name,
-      last_name: student.guardian_last_name,
-      phone_number: student.guardian_phone_number,
-      email: student.guardian_email,
-      // Student they're guardian of
-      student_id: student.id,
-      guardian_of: `${student.first_name} ${student.last_name}`,
-      grade: student.grade,
-      section: student.section
-    }));
+    return this.transformToGuardianFormat(data);
   }
 
-  static async fetchByGrade(grade) {
+  async fetchByGrade(grade) {
     const { data, error } = await supabase
-      .from('students')
+      .from(this.tableName)
       .select(`
         id,
         first_name,
@@ -125,7 +256,32 @@ export class GuardianService {
     
     if (error) throw error;
     
-    return data.map(student => ({
+    return this.transformToGuardianFormat(data);
+  }
+
+  async updateGuardian(studentId, guardianData) {
+    const updates = {
+      guardian_first_name: guardianData.first_name,
+      guardian_middle_name: guardianData.middle_name,
+      guardian_last_name: guardianData.last_name,
+      guardian_phone_number: guardianData.phone_number,
+      guardian_email: guardianData.email
+    };
+    
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .update(updates)
+      .eq('id', studentId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    return this.transformToGuardianFormat([data])[0];
+  }
+
+  transformToGuardianFormat(students) {
+    return students.map(student => ({
       id: student.id,
       first_name: student.guardian_first_name,
       middle_name: student.guardian_middle_name,
@@ -137,38 +293,5 @@ export class GuardianService {
       grade: student.grade,
       section: student.section
     }));
-  }
-
-  static async update(studentId, guardianData) {
-    const updates = {
-      guardian_first_name: guardianData.first_name,
-      guardian_middle_name: guardianData.middle_name,
-      guardian_last_name: guardianData.last_name,
-      guardian_phone_number: guardianData.phone_number,
-      guardian_email: guardianData.email
-    };
-    
-    const { data, error } = await supabase
-      .from('students')
-      .update(updates)
-      .eq('id', studentId)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    
-    // Return in guardian format
-    return {
-      id: data.id,
-      first_name: data.guardian_first_name,
-      middle_name: data.guardian_middle_name,
-      last_name: data.guardian_last_name,
-      phone_number: data.guardian_phone_number,
-      email: data.guardian_email,
-      student_id: data.id,
-      guardian_of: `${data.first_name} ${data.last_name}`,
-      grade: data.grade,
-      section: data.section
-    };
   }
 }

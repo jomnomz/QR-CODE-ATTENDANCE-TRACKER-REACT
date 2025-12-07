@@ -6,33 +6,44 @@ import { GuardianService } from '../../../Utils/EntityService';
 import { grades } from '../../../Utils/tableHelpers';
 import { formatNA } from '../../../Utils/Formatters';
 import { sortGuardians } from '../../../Utils/SortEntities'; 
-import { compareSections } from '../../../Utils/CompareHelpers'; 
 import Button from '../../UI/Buttons/Button/Button';
 import styles from './GuardianTable.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPenToSquare } from "@fortawesome/free-solid-svg-icons";
+import { sortEntities } from '../../../Utils/SortEntities';
 
 const GuardianTable = () => {
-  const { currentClass, entities: guardians, loading, error, changeClass } = useGuardians();
+  const { currentClass, entities: guardians, loading, error, changeClass, setEntities } = useGuardians();
   const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
-  const { editingId, editFormData, saving, startEdit, cancelEdit, updateEditField, saveEdit } = 
-    useEntityEdit(guardians, () => {}, 'guardian');
+  const { 
+    editingId, 
+    editFormData, 
+    saving, 
+    validationErrors,  // ADD THIS
+    startEdit, 
+    cancelEdit, 
+    updateEditField, 
+    saveEdit 
+  } = useEntityEdit(guardians, setEntities, 'guardian');
   const [localGuardians, setLocalGuardians] = useState([]);
+
+  // INDUSTRY STANDARD: Create service instance
+  const guardianService = useMemo(() => new GuardianService(), []);
 
   // Sync and sort local state with hook state
   useEffect(() => {
-  if (guardians && guardians.length > 0) {
-    const sortedGuardians = sortGuardians(guardians);
-    setLocalGuardians(sortedGuardians);
-  } else {
-    setLocalGuardians([]);
-  }
-}, [guardians]);
+    if (guardians && guardians.length > 0) {
+      const sortedGuardians = sortGuardians(guardians);
+      setLocalGuardians(sortedGuardians);
+    } else {
+      setLocalGuardians([]);
+    }
+  }, [guardians]);
 
   // Use sorted guardians for display
   const sortedGuardians = useMemo(() => {
-    return localGuardians;
-  }, [localGuardians]);
+  return sortEntities(localGuardians, { type: 'guardian' });
+}, [localGuardians]);
 
   const handleClassChange = (className) => {
     changeClass(className);
@@ -43,14 +54,19 @@ const GuardianTable = () => {
     startEdit(guardian);
   };
 
+  // INDUSTRY STANDARD: Using instance method
   const handleSaveEdit = async (guardianId, e) => {
     if (e) e.stopPropagation();
     
-    const result = await saveEdit(guardianId, currentClass, GuardianService.update);
+    const result = await saveEdit(
+      guardianId, 
+      currentClass, 
+      (id, data) => guardianService.updateGuardian(id, data)
+    );
     
     if (result.success) {
       // Update local state
-      const updatedGuardians = await GuardianService.fetchAll();
+      const updatedGuardians = await guardianService.fetchAll();
       const filteredGuardians = currentClass === 'all' 
         ? updatedGuardians
         : updatedGuardians.filter(g => g.grade === currentClass);
@@ -75,16 +91,21 @@ const GuardianTable = () => {
 
   const renderEditField = (guardian, fieldName) => {
     if (editingId === guardian.id) {
+      const error = validationErrors[fieldName];
+      
       return (
-        <input
-          type={fieldName === 'email' ? 'email' : 'text'}
-          name={fieldName}
-          value={editFormData[fieldName] || ''}
-          onChange={(e) => updateEditField(fieldName, e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          className={`${styles.editInput} edit-input`}
-          placeholder={fieldName.replace('_', ' ')}
-        />
+        <div className={styles.editFieldContainer}>
+          <input
+            type={fieldName === 'email' ? 'email' : 'text'}
+            name={fieldName}
+            value={editFormData[fieldName] || ''}
+            onChange={(e) => updateEditField(fieldName, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className={`${styles.editInput} ${error ? styles.errorInput : ''} edit-input`}
+            placeholder={fieldName.replace('_', ' ')}
+          />
+          {error && <div className={styles.errorMessage}>{error}</div>}
+        </div>
       );
     }
     return fieldName === 'email' || fieldName === 'phone_number'

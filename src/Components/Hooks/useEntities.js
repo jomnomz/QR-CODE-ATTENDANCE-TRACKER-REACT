@@ -1,19 +1,31 @@
 import { useState, useEffect } from 'react';
-import { StudentService, GuardianService } from '../../Utils/EntityService'; 
+import { StudentService, GuardianService, TeacherService } from '../../Utils/EntityService';  
 import { supabase } from '../../lib/supabase';
 
 const getStoredGrade = () => {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('currentGrade');
-    // Return stored value if exists, otherwise default to 'all'
-    return stored || 'all'; // Changed from '7' to 'all'
+    return stored || 'all';
   }
-  return 'all'; // Changed from '7' to 'all'
+  return 'all';
 };
 
 const setStoredGrade = (grade) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('currentGrade', grade);
+  }
+};
+
+const getStoredFilter = (entityType) => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(`${entityType}Filter`) || 'all';
+  }
+  return 'all';
+};
+
+const setStoredFilter = (entityType, filter) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`${entityType}Filter`, filter);
   }
 };
 
@@ -23,7 +35,6 @@ export const useStudents = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Create an instance of StudentService
   const studentService = new StudentService();
 
   const fetchStudents = async (grade) => {
@@ -34,12 +45,10 @@ export const useStudents = () => {
       console.log(`🔄 Fetching students for grade: ${grade}`);
       
       if (grade === 'all') {
-        // Fetch all students when "All" is selected
         const data = await studentService.fetchAll();
         console.log(`✅ Fetched all students: ${data.length} records`);
         setStudents(data);
       } else {
-        // Fetch by specific grade
         const data = await studentService.fetchByGrade(grade);
         console.log(`✅ Fetched grade ${grade} students: ${data.length} records`);
         setStudents(data);
@@ -53,13 +62,11 @@ export const useStudents = () => {
     }
   };
 
-  // Initial fetch when component mounts
   useEffect(() => {
     console.log('🚀 useStudents hook initialized, fetching initial data...');
     fetchStudents(currentClass);
-  }, []); // Empty dependency array = run once on mount
+  }, []);
 
-  // Fetch when currentClass changes
   useEffect(() => {
     console.log(`🔄 Current class changed to: ${currentClass}, fetching students...`);
     fetchStudents(currentClass);
@@ -80,7 +87,6 @@ export const useStudents = () => {
         (payload) => {
           console.log('🆕 REAL-TIME INSERT: New student detected:', payload.new);
           
-          // Check if the new student matches current filter
           if (currentClass === 'all' || payload.new.grade === currentClass) {
             console.log('✅ Adding new student to current view');
             setStudents(prevStudents => {
@@ -121,18 +127,22 @@ export const useStudents = () => {
 };
 
 export const useGuardians = () => {
-  const [currentClass, setCurrentClass] = useState(() => getStoredGrade()); // FIXED: Added = here
+  const [currentClass, setCurrentClass] = useState(() => getStoredGrade());
   const [guardians, setGuardians] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const guardianService = new GuardianService();
 
   const fetchGuardians = async (grade) => {
     try {
       setLoading(true);
       setError(null);
+      
       const data = grade === 'all' 
-        ? await GuardianService.fetchAll()
-        : await GuardianService.fetchByGrade(grade);
+        ? await guardianService.fetchAll()
+        : await guardianService.fetchByGrade(grade);
+      
       setGuardians(data);
     } catch (err) {
       console.error('Error fetching guardians:', err);
@@ -143,7 +153,6 @@ export const useGuardians = () => {
     }
   };
 
-  // FIX: Add initial fetch
   useEffect(() => {
     fetchGuardians(currentClass);
   }, [currentClass]);
@@ -165,5 +174,116 @@ export const useGuardians = () => {
     changeClass,
     refetch,
     setEntities: setGuardians
+  };
+};
+
+export const useTeachers = () => {
+  const [currentFilter, setCurrentFilter] = useState(() => getStoredFilter('teacher'));
+  const [teachers, setTeachers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const teacherService = new TeacherService();
+
+  const fetchTeachers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log(`🔄 Fetching teachers...`);
+      const data = await teacherService.fetchAll();
+      console.log(`✅ Fetched ${data.length} teachers`);
+      setTeachers(data);
+    } catch (err) {
+      console.error('❌ Error fetching teachers:', err);
+      setError('Failed to load teachers');
+      setTeachers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log('🚀 useTeachers hook initialized');
+    fetchTeachers();
+  }, []);
+
+  useEffect(() => {
+    console.log('🔔 Setting up real-time subscription for teachers');
+    
+    const subscription = supabase
+      .channel('teachers-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'teachers',
+        },
+        (payload) => {
+          console.log('🆕 REAL-TIME INSERT: New teacher detected:', payload.new);
+          setTeachers(prevTeachers => {
+            const exists = prevTeachers.some(t => t.id === payload.new.id);
+            if (!exists) {
+              return [...prevTeachers, payload.new];
+            }
+            return prevTeachers;
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'teachers',
+        },
+        (payload) => {
+          console.log('🔄 REAL-TIME UPDATE: Teacher updated:', payload.new);
+          setTeachers(prevTeachers =>
+            prevTeachers.map(teacher =>
+              teacher.id === payload.new.id ? payload.new : teacher
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'teachers',
+        },
+        (payload) => {
+          console.log('🗑️ REAL-TIME DELETE: Teacher removed:', payload.old.id);
+          setTeachers(prevTeachers =>
+            prevTeachers.filter(teacher => teacher.id !== payload.old.id)
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const changeFilter = (filterName) => {
+    setCurrentFilter(filterName);
+    setStoredFilter('teacher', filterName);
+  };
+
+  const refetch = () => {
+    fetchTeachers();
+  };
+
+  return {
+    currentFilter,
+    entities: teachers,
+    loading,
+    error,
+    changeFilter,
+    refetch,
+    setEntities: setTeachers
   };
 };

@@ -1,0 +1,117 @@
+.confirm-invitation-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.confirm-invitation-card {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.confirm-invitation-card.success {
+  border-top: 5px solid #10b981;
+}
+
+.confirm-invitation-card.error {
+  border-top: 5px solid #ef4444;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.success-icon {
+  font-size: 60px;
+  margin-bottom: 20px;
+}
+
+.error-icon {
+  font-size: 60px;
+  margin-bottom: 20px;
+  color: #ef4444;
+}
+
+.confirm-invitation-card h2 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 28px;
+}
+
+.confirm-invitation-card p {
+  color: #666;
+  margin-bottom: 25px;
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+.redirect-message {
+  color: #999;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.login-button, .home-button, .contact-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.login-button {
+  background: #667eea;
+  color: white;
+  margin-top: 10px;
+}
+
+.login-button:hover {
+  background: #5a67d8;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.home-button {
+  background: #667eea;
+  color: white;
+}
+
+.home-button:hover {
+  background: #5a67d8;
+}
+
+.contact-button {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.contact-button:hover {
+  background: #e5e7eb;
+}

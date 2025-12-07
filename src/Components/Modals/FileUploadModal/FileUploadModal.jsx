@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import axios from "axios";
 import Modal from '../Modal/Modal.jsx'
 import styles from './FileUploadModal.module.css'
@@ -7,12 +7,27 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import { useToast } from '../../Toast/ToastContext/ToastContext.jsx';
 import MessageModalLabel from '../../UI/Labels/MessageModalLabel/MessageModalLabel.jsx';
 
-function FileUploadModal({ isOpen, onClose, addStudent, onUploadSuccess }) {
+function FileUploadModal({ 
+  isOpen, 
+  onClose, 
+  entityType = 'student', // 'student' or 'teacher'
+  onUploadSuccess 
+}) {
     const [file, setFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [uploadEndpoint, setUploadEndpoint] = useState('');
     const fileInputRef = useRef(null);
     const { success, error, warning, info } = useToast();
+
+    // Set upload endpoint based on entity type
+    useEffect(() => {
+        if (entityType === 'teacher') {
+            setUploadEndpoint('http://localhost:5000/api/teachers/upload');
+        } else {
+            setUploadEndpoint('http://localhost:5000/api/students/upload');
+        }
+    }, [entityType]);
 
     const handleDragOver = (e) => {
         e.preventDefault();
@@ -45,7 +60,7 @@ function FileUploadModal({ isOpen, onClose, addStudent, onUploadSuccess }) {
         const extname = selectedFile.name.split('.').pop().toLowerCase();
         
         if (!validFileExtensions.includes(extname)) {
-            alert('Please upload a valid Excel file (.xlsx, .xls, .csv)');
+            warning('Please upload a valid Excel file (.xlsx, .xls, .csv)');
             return;
         }
 
@@ -72,58 +87,101 @@ function FileUploadModal({ isOpen, onClose, addStudent, onUploadSuccess }) {
         }
     };
 
+    // Get modal title based on entity type
+    const getModalTitle = () => {
+        switch(entityType) {
+            case 'teacher':
+                return 'Upload Teacher Data';
+            case 'student':
+            default:
+                return 'Upload Student Data';
+        }
+    };
+
+    // Get description based on entity type
+    const getDescription = () => {
+        switch(entityType) {
+            case 'teacher':
+                return 'Upload an Excel or CSV file with teacher information. Required fields: Employee ID, First Name, Last Name.';
+            case 'student':
+            default:
+                return 'Upload an Excel or CSV file with student information. Required fields: LRN, First Name, Last Name, Grade, Section.';
+        }
+    };
+
+    // Get success message based on entity type
+    const getSuccessMessage = (responseData) => {
+  // Just use the message from the server
+  return responseData.message || 'Upload completed successfully';
+};
+
+    // Get field mapping download link
+    const getFieldMappingLink = () => {
+        switch(entityType) {
+            case 'teacher':
+                return '/templates/teacher-import-template.xlsx';
+            case 'student':
+            default:
+                return '/templates/student-import-template.xlsx';
+        }
+    };
+
     async function handleUpload() {
-        if (!file) {
-            warning('Please select a file first'); 
-            return;
-        }
+  if (!file) {
+    warning('Please select a file first'); 
+    return;
+  }
 
-        setIsUploading(true);
+  setIsUploading(true);
 
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
 
-            console.log('🚀 Starting upload...');
-            const response = await axios.post(
-                'http://localhost:5000/api/students/upload', 
-                formData, 
-                {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
-                }
-            );
+    console.log(`🚀 Starting ${entityType} upload...`);
+    
+    const endpoint = entityType === 'teacher' 
+      ? 'http://localhost:5000/api/teachers/upload'
+      : 'http://localhost:5000/api/students/upload';
+    
+    const response = await axios.post(endpoint, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
 
-            console.log('✅ Upload successful:', response.data);
-            console.log('🆕 Students created:', response.data.newStudents);
+    console.log('✅ Upload response:', response.data);
             
-            // Check if any new students were added
-            const newStudentsCount = response.data.newStudents?.length || 0;
-            
-            if (newStudentsCount === 0) {
-                // Show warning if no students were added
-                warning('No new students were added. All students in the file already exist in the system.');
-            } else {
-                // Show success if students were added
-                success(`Successfully added ${newStudentsCount} student${newStudentsCount !== 1 ? 's' : ''}!`);
-            }
-            
-            // NEW: Call the callback to refresh all students (even if 0 were added)
-            if (onUploadSuccess) {
-                onUploadSuccess(response.data.newStudents || []);
-            }
-            
-            onClose();  
-            resetFileUpload();
-
-        } catch (err) {
-            console.error('❌ Upload failed:', err);
-            error('Upload failed. Please check the file format and try again.');
-        } finally {
-            setIsUploading(false);
-        }
+    if (response.data.success) {
+      // Check if any new records were added
+      if (response.data.hasNewRecords === false || response.data.summary?.newRecordsCreated === 0) {
+        warning(response.data.message); // Show warning toast
+      } else {
+        success(response.data.message); // Show success toast
+      }
+      
+      // Call the callback to refresh entities (only if new records were added)
+      if (onUploadSuccess && response.data.summary?.newRecordsCreated > 0) {
+        const newEntities = response.data[entityType === 'teacher' ? 'newTeachers' : 'newStudents'] || [];
+        onUploadSuccess(newEntities);
+      }
+      
+      onClose();  
+      resetFileUpload();
+    } else {
+      error(response.data.error || 'Upload failed');
     }
+
+  } catch (err) {
+    console.error('❌ Upload failed:', err);
+    
+    if (err.response?.data?.error) {
+      error(err.response.data.error);
+    } else {
+      error(`Upload failed. Please check the file format and try again.`);
+    }
+  } finally {
+    setIsUploading(false);
+  }
+}
 
     const handleClose = () => {
         resetFileUpload();
@@ -131,11 +189,23 @@ function FileUploadModal({ isOpen, onClose, addStudent, onUploadSuccess }) {
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} size="sm"> 
+        <Modal isOpen={isOpen} onClose={handleClose} size="md"> 
             <div className={styles.modalContainer}>
-                <h2>Upload Student Data</h2>
+                <h2>{getModalTitle()}</h2>
                 <MessageModalLabel>
-                    <p>Upload an Excel or CSV file with student information</p>
+                    <p>{getDescription()}</p>
+                    <p className={styles.note}>
+                        <strong>Note:</strong> All records must be valid. If any record has errors, the entire upload will be rejected.
+                    </p>
+                    <p className={styles.templateLink}>
+                        <a 
+                            href={getFieldMappingLink()} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                        >
+                            Download field mapping template
+                        </a>
+                    </p>
                 </MessageModalLabel>
                 
                 <div 

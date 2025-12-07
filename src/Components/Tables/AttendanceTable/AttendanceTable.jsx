@@ -3,16 +3,18 @@ import { useAttendance } from '../../Hooks/useAttendance';
 import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
 import { grades, shouldHandleRowClick, attendanceTableColumns } from '../../../Utils/tableHelpers';
 import { formatStudentName, formatDate, formatNA, formatTime, formatAttendanceStatus, formatGradeSection } from '../../../Utils/Formatters'; 
-import { sortStudents } from '../../../Utils/CompareHelpers';
 import Button from '../../UI/Buttons/Button/Button';
 import styles from './AttendanceTable.module.css';
+import { sortEntities } from '../../../Utils/SortEntities'; 
 
 const AttendanceTable = () => {
   const { currentClass, attendances, loading, error, currentDate, changeClass } = useAttendance();
   const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
 
   // Sort attendances
-  const sortedAttendances = useMemo(() => sortStudents(attendances), [attendances]);
+  const sortedAttendances = useMemo(() => {
+  return sortEntities(attendances, { type: 'student' });
+}, [attendances]);
 
   const handleClassChange = (className) => {
     changeClass(className);

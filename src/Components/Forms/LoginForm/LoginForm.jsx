@@ -22,16 +22,18 @@ function LoginForm() {
     setError("");
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // 1. Login with Supabase Auth
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
         email: username,
         password,
       });
 
-      if (error) {
+      if (loginError) {
         setError("Email or password is invalid");
         return;
       }
 
+      // 2. Get user profile
       const { data: userData, error: profileError } = await supabase
         .from("users")
         .select("role, status")
@@ -43,20 +45,63 @@ function LoginForm() {
         return;
       }
 
+      // 3. If teacher is pending, update to active
+      if (userData.role === "teacher" && userData.status === "invited") {
+        try {
+          // Call accept-invitation endpoint
+          const response = await fetch('http://localhost:5000/api/teacher-invite/accept-invitation', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: username })
+          });
+          
+          const result = await response.json();
+          
+          if (!result.success) {
+            console.error('Failed to accept invitation:', result.error);
+            // Continue anyway - teacher can still login
+          }
+          
+          // Refresh user data after update
+          const { data: updatedUserData } = await supabase
+            .from("users")
+            .select("role, status")
+            .eq("user_id", data.user.id)
+            .single();
+          
+          // Update local variable
+          if (updatedUserData) {
+            userData.status = updatedUserData.status;
+          }
+        } catch (inviteError) {
+          console.error('Error accepting invitation:', inviteError);
+          // Continue login anyway
+        }
+      }
+
+      // 4. Check status after potential update
       if (userData.status !== "active") {
         if (userData.status === "inactive") {
           setError("This account has been deactivated");
+        } else if (userData.status === "invited") {
+          setError("Please accept the invitation by logging in");
         } else {
           setError("Your account is not yet approved");
         }
         return;
       }
 
-      if (userData.role === "admin") navigate("/admin/dashboard");
-      else if (userData.role === "teacher") navigate("/teacher/dashboard");
-      else navigate("/");
+      // 5. Redirect based on role
+      if (userData.role === "admin") {
+        navigate("/admin/dashboard");
+      } else if (userData.role === "teacher") {
+        navigate("/teacher/dashboard");
+      } else {
+        navigate("/");
+      }
 
     } catch (err) {
+      console.error('Login error:', err);
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -100,15 +145,15 @@ function LoginForm() {
         </div>
       </div>
 
-  <div className={styles.inputWrapper}>
+      <div className={styles.inputWrapper}>
         <Button
           label={loading ? "Logging in..." : "Login"}
           color="success"
           width="95"
           type="submit"
           disabled={loading}
-      />
-  </div>
+        />
+      </div>
 
       {error && <div className={styles.error}><ReportGmailerrorredIcon/> {error}</div>}
     </form>

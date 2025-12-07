@@ -1,3 +1,4 @@
+// SortEntities.js
 import { compareSections } from './CompareHelpers';
 
 export const sortEntities = (entities, sortConfig = {}) => {
@@ -20,7 +21,7 @@ export const sortEntities = (entities, sortConfig = {}) => {
       return sortGuardiansLogic(a, b);
     }
     
-    // Teacher-specific sorting (add this when you need it)
+    // Teacher-specific sorting
     if (type === 'teacher') {
       return sortTeachersLogic(a, b);
     }
@@ -32,14 +33,24 @@ export const sortEntities = (entities, sortConfig = {}) => {
 
 // Student sorting logic
 const sortStudentsLogic = (a, b) => {
+  // First, sort by grade (convert to number for proper numeric sorting)
+  const gradeA = parseInt(a.grade) || 0;
+  const gradeB = parseInt(b.grade) || 0;
+  
+  if (gradeA !== gradeB) {
+    return gradeA - gradeB;
+  }
+  
+  // Then, sort by section
   const sectionA = (a.section || '').toString().trim();
   const sectionB = (b.section || '').toString().trim();
-  
   const sectionComparison = compareSections(sectionA, sectionB);
+  
   if (sectionComparison !== 0) {
     return sectionComparison;
   }
   
+  // Then, sort by last name
   const lastNameA = (a.last_name || '').toLowerCase().trim();
   const lastNameB = (b.last_name || '').toLowerCase().trim();
   
@@ -65,7 +76,7 @@ const sortGuardiansLogic = (a, b) => {
     return sectionComparison;
   }
   
-  // Then, sort by student last name (the person they're guardian of)
+  // Then, sort by student last name
   const studentLastNameA = (a.guardian_of?.split(' ').pop() || '').toLowerCase().trim();
   const studentLastNameB = (b.guardian_of?.split(' ').pop() || '').toLowerCase().trim();
   const nameComparison = studentLastNameA.localeCompare(studentLastNameB);
@@ -81,22 +92,25 @@ const sortGuardiansLogic = (a, b) => {
   return guardianLastNameA.localeCompare(guardianLastNameB);
 };
 
-// Teacher sorting logic (add when you create teachers)
+// Teacher sorting logic
 const sortTeachersLogic = (a, b) => {
-  // Sort by department first, then last name
-  const departmentA = (a.department || '').toLowerCase().trim();
-  const departmentB = (b.department || '').toLowerCase().trim();
-  
-  if (departmentA !== departmentB) {
-    return departmentA.localeCompare(departmentB);
-  }
-  
+  // Sort by last name first
   const lastNameA = (a.last_name || '').toLowerCase().trim();
   const lastNameB = (b.last_name || '').toLowerCase().trim();
+  const lastNameComparison = lastNameA.localeCompare(lastNameB);
   
-  return lastNameA.localeCompare(lastNameB);
+  if (lastNameComparison !== 0) {
+    return lastNameComparison;
+  }
+  
+  // Then sort by first name
+  const firstNameA = (a.first_name || '').toLowerCase().trim();
+  const firstNameB = (b.first_name || '').toLowerCase().trim();
+  
+  return firstNameA.localeCompare(firstNameB);
 };
 
 // Export for backward compatibility
 export const sortStudents = (students) => sortEntities(students, { type: 'student' });
 export const sortGuardians = (guardians) => sortEntities(guardians, { type: 'guardian' });
+export const sortTeachers = (teachers) => sortEntities(teachers, { type: 'teacher' });

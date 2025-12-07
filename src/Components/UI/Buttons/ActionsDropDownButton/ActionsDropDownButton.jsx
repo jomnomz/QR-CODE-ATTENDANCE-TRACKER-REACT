@@ -7,9 +7,7 @@ function ActionsDropdownButton({
   currentSection = '',
   currentGrade = '',
   onDeleteSelected,
-  onPromoteSelected,
-  onMoveSelected,
-  onDownloadQR // RENAMED HANDLER
+  onDownloadQR
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -55,20 +53,6 @@ function ActionsDropdownButton({
     setIsOpen(false);
   };
 
-  const handlePromote = () => {
-    if (hasSelection) {
-      onPromoteSelected?.(selectedCount, getActionDescription());
-    }
-    setIsOpen(false);
-  };
-
-  const handleMove = () => {
-    if (hasSelection) {
-      onMoveSelected?.(selectedCount, getActionDescription());
-    }
-    setIsOpen(false);
-  };
-
   const handleDownloadQR = () => {
     if (hasSelection) {
       onDownloadQR?.(selectedCount, getActionDescription());
@@ -91,7 +75,6 @@ function ActionsDropdownButton({
       
       {isOpen && hasSelection && (
         <div className={styles.dropdownMenu}>
-
           {/* Delete Action */}
           <div 
             className={styles.dropdownItem}
@@ -99,32 +82,6 @@ function ActionsDropdownButton({
           >
             <div className={styles.actionText}>
               Delete Selected
-              <span className={styles.actionCount}>
-                ({selectedCount})
-              </span>
-            </div>
-          </div>
-
-          {/* Promote Action */}
-          <div 
-            className={styles.dropdownItem}
-            onClick={handlePromote}
-          >
-            <div className={styles.actionText}>
-              Promote Selected
-              <span className={styles.actionCount}>
-                ({selectedCount})
-              </span>
-            </div>
-          </div>
-
-          {/* Move Action */}
-          <div 
-            className={styles.dropdownItem}
-            onClick={handleMove}
-          >
-            <div className={styles.actionText}>
-              Move Selected to Section...
               <span className={styles.actionCount}>
                 ({selectedCount})
               </span>

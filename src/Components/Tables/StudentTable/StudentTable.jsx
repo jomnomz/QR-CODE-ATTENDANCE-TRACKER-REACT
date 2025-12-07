@@ -2,10 +2,10 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useStudents } from '../../Hooks/useEntities'; 
 import { useEntityEdit } from '../../Hooks/useEntityEdit'; 
 import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
-import { useStudentActions } from '../../Hooks/useStudentActions'; 
+import { useStudentActions } from '../../Hooks/useEntityActions'; 
 import { StudentService } from '../../../Utils/EntityService'; 
 import { grades, shouldHandleRowClick } from '../../../Utils/tableHelpers';
-import { sortEntities, sortStudents } from '../../../Utils/SortEntities'; 
+import { sortStudents } from '../../../Utils/SortEntities'; 
 import { compareSections } from '../../../Utils/CompareHelpers'; 
 import { formatStudentName, formatGradeSection, formatDate, formatNA } from '../../../Utils/Formatters';
 import Button from '../../UI/Buttons/Button/Button';
@@ -16,6 +16,34 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircle as farCircle } from "@fortawesome/free-regular-svg-icons";
 import { faQrcode, faPenToSquare, faTrashCan, faCircle as fasCircle } from "@fortawesome/free-solid-svg-icons";
 import { useToast } from '../../Toast/ToastContext/ToastContext';
+import { useAuth } from '../../Authentication/AuthProvider/AuthProvider'; 
+
+// Update this helper function to use proper formatting
+const formatDateTimeLocal = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  } catch (error) {
+    console.error('Error formatting date:', dateString, error);
+    return 'N/A';
+  }
+};
 
 const StudentTable = ({ 
   searchTerm = '', 
@@ -27,17 +55,16 @@ const StudentTable = ({
   onClearSectionFilter,
   onSingleDeleteClick,
   refreshStudents,
-  refreshAllStudents // ADDED THIS PROP
+  refreshAllStudents
 }) => {
     
   const { currentClass, entities: students, loading, error, changeClass, setEntities } = useStudents();
   
-  // UPDATED: Use useEntityEdit instead of useStudentEdit
-  const { editingId: editingStudent, editFormData, saving, startEdit, cancelEdit, updateEditField, saveEdit } = useEntityEdit(
+  const { editingId: editingStudent, editFormData, saving, validationErrors, startEdit, cancelEdit, updateEditField, saveEdit } = useEntityEdit(
     students, 
     setEntities,
     'student',
-    refreshAllStudents // ADDED THIS
+    refreshAllStudents
   );
   
   const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
@@ -46,11 +73,16 @@ const StudentTable = ({
     handleQRCodeClick 
   } = useStudentActions(setEntities);
 
+  const { success } = useToast();
+  const { user, profile, loading: authLoading } = useAuth(); // Use existing auth hook
   const [updateWarningOpen, setUpdateWarningOpen] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState(null);
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [sectionInputValue, setSectionInputValue] = useState('');
   const [sectionSuggestionsId] = useState(() => `sectionSuggestions_${Math.random().toString(36).substr(2, 9)}`);
+
+  // Create service instance
+  const studentService = useMemo(() => new StudentService(), []);
 
   // Get all unique sections from all students for datalist suggestions
   const allUniqueSections = useMemo(() => {
@@ -102,14 +134,12 @@ const StudentTable = ({
   const filteredStudents = useMemo(() => {
     let filtered = students;
     
-    // Filter by section if selected
     if (selectedSection) {
       filtered = filtered.filter(student => 
         student.section?.toString() === selectedSection
       );
     }
     
-    // Filter by search term
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(student => 
@@ -121,7 +151,6 @@ const StudentTable = ({
         student.section?.toString().toLowerCase().includes(searchLower) ||
         student.email?.toLowerCase().includes(searchLower) ||
         student.phone_number?.toLowerCase().includes(searchLower) ||
-        // Also search guardian fields
         student.guardian_first_name?.toLowerCase().includes(searchLower) ||
         student.guardian_last_name?.toLowerCase().includes(searchLower) ||
         student.guardian_phone_number?.toLowerCase().includes(searchLower)
@@ -149,8 +178,6 @@ const StudentTable = ({
       onStudentDataUpdate(students);
     }
   }, [students, onStudentDataUpdate]);
-
-  const { success } = useToast();
 
   const handleClassChange = (className) => {
     changeClass(className);
@@ -180,7 +207,6 @@ const StudentTable = ({
     const { name, value } = e.target;
     updateEditField(name, value);
     
-    // Update section input value for filtering
     if (name === 'section') {
       setSectionInputValue(value);
     }
@@ -191,7 +217,6 @@ const StudentTable = ({
     updateEditField(name, value);
   };
 
-  // UPDATED: Save edit using StudentService
   const handleSaveEdit = async (studentId, e) => {
     if (e) e.stopPropagation();
     
@@ -207,13 +232,21 @@ const StudentTable = ({
       setPendingUpdate({ studentId, student });
       setUpdateWarningOpen(true);
     } else {
-      const result = await saveEdit(studentId, currentClass, StudentService.update.bind(new StudentService()));
+      const result = await saveEdit(
+        studentId, 
+        currentClass, 
+        (id, data) => studentService.update(id, {
+          ...data,
+          updated_by: user?.id, // Use user.id from auth
+          updated_at: new Date().toISOString()
+        })
+      );
+      
       if (result.success) {
         success('Student information updated successfully');
         if (result.gradeChanged) {
           success(`Student moved to Grade ${editFormData.grade}`);
         }
-        // NEW: Trigger refresh of current table view
         if (refreshStudents) {
           refreshStudents();
         }
@@ -221,19 +254,26 @@ const StudentTable = ({
         console.error(result.error);
       }
     }
-    // Reset section input value
     setSectionInputValue('');
   };
 
   const handleConfirmUpdate = async () => {
     if (pendingUpdate) {
-      const result = await saveEdit(pendingUpdate.studentId, currentClass, StudentService.update.bind(new StudentService()));
+      const result = await saveEdit(
+        pendingUpdate.studentId, 
+        currentClass, 
+        (id, data) => studentService.update(id, {
+          ...data,
+          updated_by: user?.id, // Use user.id from auth
+          updated_at: new Date().toISOString()
+        })
+      );
+      
       if (result.success) {
         success('Student information updated successfully');
         if (result.gradeChanged) {
           success(`Student moved to Grade ${editFormData.grade}`);
         }
-        // NEW: Trigger refresh of current table view
         if (refreshStudents) {
           refreshStudents();
         }
@@ -241,7 +281,6 @@ const StudentTable = ({
         console.error(result.error);
       }
       setPendingUpdate(null);
-      // Reset section input value
       setSectionInputValue('');
     }
   };
@@ -296,11 +335,10 @@ const StudentTable = ({
       value={editFormData[fieldName] || ''}
       onChange={handleInputChange}
       onClick={handleInputClick}
-      className={`${styles.editInput} edit-input`}
+      className={`${styles.editInput} ${validationErrors[fieldName] ? styles.errorInput : ''} edit-input`}
     />
   );
 
-  // UPDATED: Add guardian field inputs
   const renderGuardianEditInput = (fieldName, type = 'text') => (
     <input
       type={type}
@@ -308,7 +346,7 @@ const StudentTable = ({
       value={editFormData[fieldName] || ''}
       onChange={handleInputChange}
       onClick={handleInputClick}
-      className={`${styles.editInput} edit-input`}
+      className={`${styles.editInput} ${validationErrors[fieldName] ? styles.errorInput : ''} edit-input`}
       placeholder={`Guardian ${fieldName.replace('guardian_', '').replace('_', ' ')}`}
     />
   );
@@ -319,9 +357,8 @@ const StudentTable = ({
       value={editFormData.grade || ''}
       onChange={handleSelectChange}
       onClick={handleInputClick}
-      className={`${styles.editSelect} edit-input`}
+      className={`${styles.editSelect} ${validationErrors.grade ? styles.errorInput : ''} edit-input`}
     >
-      <option value="">Select Grade</option>
       {grades.map(grade => (
         <option key={grade} value={grade}>
           {grade}
@@ -339,7 +376,7 @@ const StudentTable = ({
         value={editFormData.section || ''}
         onChange={handleInputChange}
         onClick={handleInputClick}
-        className={`${styles.editInput} edit-input`}
+        className={`${styles.editInput} ${validationErrors.section ? styles.errorInput : ''} edit-input`}
         placeholder="Enter section"
         autoComplete="off"
       />
@@ -351,7 +388,6 @@ const StudentTable = ({
     </>
   );
 
-  // UPDATED: Handle guardian fields in edit mode
   const renderField = (student, fieldName, isEditable = true) => {
     if (editingStudent === student.id && isEditable) {
       if (fieldName === 'grade') {
@@ -406,8 +442,45 @@ const StudentTable = ({
     </div>
   );
 
-  // UPDATED: Add guardian info to expanded row
-  const renderExpandedRow = (student) => (
+ const renderExpandedRow = (student) => {
+  console.log('Student debug:', {
+    id: student.id,
+    name: formatStudentName(student),
+    created_by: student.created_by,
+    updated_by: student.updated_by,
+    updated_by_user: student.updated_by_user,
+    created_at: student.created_at,
+    updated_at: student.updated_at
+  });
+  
+  // Format creation and update timestamps using the local helper
+  const addedAt = formatDateTimeLocal(student.created_at);
+  const updatedAt = student.updated_at ? formatDateTimeLocal(student.updated_at) : 'Never updated';
+  
+  // Get current user for comparison
+  const getCurrentUserName = () => {
+    if (!user) return 'N/A';
+    if (profile) {
+      const name = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+      return name || profile.username || profile.email || 'Current User';
+    }
+    return user.email || 'Current User';
+  };
+  
+  const currentUserName = getCurrentUserName();
+  const currentUserId = user?.id;
+    
+  const updatedByName = student.updated_by 
+    ? (student.updated_by_user 
+        ? `${student.updated_by_user.first_name || ''} ${student.updated_by_user.last_name || ''}`.trim() || 
+          student.updated_by_user.username || 
+          student.updated_by_user.email || 
+          'User'
+        : (currentUserId && student.updated_by === currentUserId ? currentUserName : 'User')
+      )
+    : 'Not yet updated';
+
+  return (
     <tr className={`${styles.expandRow} ${isRowExpanded(student.id) ? styles.expandRowActive : ''}`}>
       <td colSpan="12">
         <div 
@@ -417,6 +490,7 @@ const StudentTable = ({
           <div className={styles.studentHeader}>
             {formatStudentName(student)}
           </div>
+          
           <div className={styles.studentInfo}>
             <strong>Student Details</strong>
           </div>
@@ -430,7 +504,7 @@ const StudentTable = ({
             <strong>Guardian Information</strong>
           </div>
           <div className={styles.studentInfo}>
-            Name: {formatNA(student.guardian_first_name)} {formatNA(student.guardian_middle_name)} {formatNA(student.guardian_last_name)}
+            Name: {formatNA(student.guardian_first_name)} {(student.guardian_middle_name)} {formatNA(student.guardian_last_name)}
           </div>
           <div className={styles.studentInfo}>
             Phone: {formatNA(student.guardian_phone_number)}
@@ -440,12 +514,27 @@ const StudentTable = ({
           </div>
           
           <div className={styles.studentInfo}>
-            Added: {formatDate(student.created_at)}
+            <strong>Record Information</strong>
+          </div>
+          <div className={styles.studentInfo}>
+            Added: {addedAt}
+          </div>
+          <div className={styles.studentInfo}>
+            Last Updated: {updatedAt}
+          </div>
+          <div className={styles.studentInfo}>
+            Last Updated By: {updatedByName}
+            {student.updated_by && student.updated_by_user && (
+              <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '8px' }}>
+                ({student.updated_by_user.username || student.updated_by_user.email})
+              </span>
+            )}
           </div>
         </div>
       </td>
     </tr>
   );
+};
 
   if (loading) {
     return (
@@ -467,9 +556,8 @@ const StudentTable = ({
     <div className={styles.studentTableContainer} ref={tableRef}>
       <div className={styles.studentsTable}>
         <div className={styles.classContainers}>
-          {/* ADDED: "All" button */}
           <Button 
-            label="All"  // Already changed in the code above
+            label="All"
             tabBottom={true}
             height="xs"
             width="xs-sm"

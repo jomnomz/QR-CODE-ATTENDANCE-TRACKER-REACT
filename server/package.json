@@ -21,6 +21,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "multer": "^2.0.2",
+    "nodemailer": "^7.0.11",
     "read-excel-file": "^6.0.1"
   }
 }

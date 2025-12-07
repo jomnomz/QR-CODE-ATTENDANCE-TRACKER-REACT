@@ -5,13 +5,6 @@
   gap: 10px;
 }
 
-.message {
-  font-size: 1rem;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
-
 .dropArea {
     border: 2px dashed #3F7857;
     border-radius: 8px;
@@ -95,4 +88,38 @@
   background-color: #ffebee;
   border: 1px solid #f44336;
   border-radius: 4px;
+}
+
+.note {
+    color: #d9534f;
+    font-size: 0.9em;
+    margin-top: 8px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-left: 3px solid #d9534f;
+}
+
+.templateLink {
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+
+.templateLink a {
+    color: #007bff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.templateLink a:hover {
+    text-decoration: underline;
+}
+
+.fileInfo {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    border-left: 3px solid #28a745;
 }

@@ -19,6 +19,8 @@ import TeacherSettings from './Pages/TeacherPages/TeacherSettings/TeacherSetting
 import TeacherStudents from './Pages/TeacherPages/TeacherStudents/TeacherStudents.jsx';
 import TeacherAttendance from './Pages/TeacherPages/TeacherAtendace/TeacherAttendance.jsx';
 
+import ConfirmInvitation from './Pages/ConfirmInvitation/ConfirmInvitation.jsx';
+
 import { ToastProvider } from './Components/Toast/ToastContext/ToastContext.jsx';
 
 function App() {
@@ -29,6 +31,8 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<LoginPage />} />
+
+            <Route path="/auth/confirm-invitation" element={<ConfirmInvitation />} />
 
             <Route
               path="/admin"

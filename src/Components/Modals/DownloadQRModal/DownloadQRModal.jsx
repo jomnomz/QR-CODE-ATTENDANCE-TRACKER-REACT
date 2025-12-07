@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../Modal/Modal.jsx';
 import Button from '../../UI/Buttons/Button/Button.jsx';
-import { formatStudentName, formatGradeSection } from '../../../Utils/Formatters.js'; 
 import { useToast } from '../../Toast/ToastContext/ToastContext.jsx'; 
 import styles from './DownloadQRModal.module.css';
 import InfoBox from '../../UI/InfoBoxes/InfoBox/InfoBox.jsx';
-import StudentList from '../../List/StudentList/StudentList.jsx';
+import EntityList from '../../List/EntityList/EntityList.jsx';
 import TitleModalLabel from '../../UI/Labels/TitleModalLabel/TitleModalLabel.jsx';
 import MessageModalLabel from '../../UI/Labels/MessageModalLabel/MessageModalLabel.jsx';
 
@@ -23,7 +22,6 @@ function DownloadQRModal({
   
   const selectedCount = selectedStudents.length;
   
-  // Get actual student objects from IDs
   const selectedStudentObjects = React.useMemo(() => 
     selectedStudents
       .map(studentId => studentData.find(s => s.id === studentId))
@@ -31,7 +29,6 @@ function DownloadQRModal({
     [selectedStudents, studentData]
   );
 
-  // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
       setIsProcessing(false);
@@ -48,23 +45,18 @@ function DownloadQRModal({
     return `from Grade ${currentGrade}`;
   };
 
-  // Function to download QR codes as ZIP
   const handleDownloadZIP = async () => {
     setIsProcessing(true);
     
     try {
-      // Dynamically import JSZip - FIXED: JSZip is default export
       const JSZipModule = await import('jszip');
       const JSZip = JSZipModule.default;
       const zip = new JSZip();
       
-      // Create a folder for the QR codes
       const folderName = `QR_Codes_${currentGrade}_${currentSection || 'All'}_${new Date().toISOString().split('T')[0]}`;
       const qrFolder = zip.folder(folderName);
       
-      // Generate QR code for each student
       for (const student of selectedStudentObjects) {
-        // Generate QR code data
         const qrData = JSON.stringify({
           lrn: student.lrn,
           token: student.qr_verification_token,
@@ -74,17 +66,14 @@ function DownloadQRModal({
           type: 'student_attendance'
         });
         
-        // Create a simple canvas with QR code information
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = 200;
         canvas.height = 200;
         
-        // Draw white background
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, 200, 200);
         
-        // Draw QR code placeholder (in real app, generate actual QR code)
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 16px Arial';
         ctx.textAlign = 'center';
@@ -95,10 +84,7 @@ function DownloadQRModal({
         ctx.fillText(`${student.first_name} ${student.last_name}`, 100, 130);
         ctx.fillText(`${student.grade}-${student.section}`, 100, 150);
         
-        // Convert to PNG
         const pngData = canvas.toDataURL('image/png');
-        
-        // Convert base64 to blob
         const base64Data = pngData.split(',')[1];
         const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
@@ -107,12 +93,10 @@ function DownloadQRModal({
         }
         const byteArray = new Uint8Array(byteNumbers);
         
-        // Add file to ZIP
         const fileName = `QR_${student.lrn}_${student.first_name}_${student.last_name}.png`;
         qrFolder.file(fileName, byteArray);
       }
       
-      // Generate and download ZIP
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       const downloadLink = document.createElement('a');
       downloadLink.href = URL.createObjectURL(zipBlob);
@@ -132,13 +116,11 @@ function DownloadQRModal({
     }
   };
 
-  // Handle individual download of QR codes
   const handleDownloadIndividual = async () => {
     setIsProcessing(true);
     
     try {
       for (const student of selectedStudentObjects) {
-        // Generate QR code data
         const qrData = JSON.stringify({
           lrn: student.lrn,
           token: student.qr_verification_token,
@@ -148,17 +130,14 @@ function DownloadQRModal({
           type: 'student_attendance'
         });
         
-        // Create a simple canvas with QR code information
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = 200;
         canvas.height = 200;
         
-        // Draw white background
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, 200, 200);
         
-        // Draw QR code placeholder
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 16px Arial';
         ctx.textAlign = 'center';
@@ -169,7 +148,6 @@ function DownloadQRModal({
         ctx.fillText(`${student.first_name} ${student.last_name}`, 100, 130);
         ctx.fillText(`${student.grade}-${student.section}`, 100, 150);
         
-        // Convert to PNG and download
         const pngData = canvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
         downloadLink.href = pngData;
@@ -178,7 +156,6 @@ function DownloadQRModal({
         downloadLink.click();
         document.body.removeChild(downloadLink);
         
-        // Small delay between downloads
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       
@@ -204,19 +181,17 @@ function DownloadQRModal({
           {selectedCount} student{selectedCount !== 1 ? 's' : ''} {getContextDescription()}
         </MessageModalLabel>
         
-        {/* Student List */}
-        <StudentList 
-          variant='multiple'
-          students={selectedStudentObjects}
+        <EntityList 
+          entities={selectedStudentObjects}
+          variant="multiple"
           title="Students to download"
+          entityType="student"
         />
         
-        {/* Note */}
         <InfoBox type="note">
           <strong>Note:</strong> This will download QR codes for all {selectedCount} selected student{selectedCount !== 1 ? 's' : ''}. QR Codes can be downloaded as Zip File or as Individual Files.
         </InfoBox>
         
-        {/* Action Buttons */}
         <div className={styles.buttonGroup}>
           <Button
             label={isProcessing ? 'Processing...' : 'ZIP'}
