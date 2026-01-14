@@ -29,8 +29,16 @@ function Modal({
     xsm: { width: "300px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
     sm: { width: "400px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
     md: { width: "500px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
-    lg: { width: "800px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
-    xl: { width: "1000px", maxWidth: "95vw", height: "auto", maxHeight: "90vh" },
+    lg: { width: "700px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
+    xl: { width: "900px", maxWidth: "90vw", height: "auto", maxHeight: "90vh" },
+    xxl: { width: "1100px", maxWidth: "95vw", height: "85vh", maxHeight: "85vh" },
+      xxxl: { 
+    width: "1300px", 
+    maxWidth: "95vw", 
+    height: "90vh",  // Increased from 85vh
+    maxHeight: "90vh" 
+  },
+    full: { width: "95vw", maxWidth: "95vw", height: "90vh", maxHeight: "90vh" }
   };
 
   const sizeStyle = sizeMap[size] || sizeMap.md; 

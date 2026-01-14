@@ -4,21 +4,19 @@
   flex-direction: column;
 }
 
-.studentsTable {
-  margin-top: 10px;
-}
-
 .tableWrapper {
   max-height: 59vh;
   overflow-y: auto;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
+  width: 98%;
 }
 
-table {
-  width: 1290px;
+.tableWrapper table {
+  width: 100%;
   border-collapse: collapse;
   margin: 0;
+  table-layout: auto;
 }
 
 .tableWrapper thead th {
@@ -32,11 +30,15 @@ table {
 th {
   padding: 12px;
   text-align: center;
+  font-weight: bold;
 }
 
 td, th {
   text-align: center;
   padding: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 tbody tr {
@@ -56,6 +58,10 @@ tbody tr {
 .studentRow:hover {
   background-color: #8a8a8a !important;
   cursor: pointer;
+}
+
+.studentRow:hover td {
+  color: white;
 }
 
 .classContainers {
@@ -88,6 +94,12 @@ tbody tr {
   padding: 20px;
   opacity: 1;
   transform: scaleY(1);
+}
+
+.details {
+  display: flex;
+  flex-direction: row;
+  gap: 50px; 
 }
 
 .expandRow {
@@ -138,6 +150,13 @@ tbody tr {
   border-radius: 4px;
 }
 
+.noStudents {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 40px;
+}
+
 .tableInfo {
   display: flex;
   flex-direction: column;
@@ -150,8 +169,20 @@ tbody tr {
   color: #003a02;
 } 
 
-.icon{
+.icon {
   font-size: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon svg {
+  transition: color 0.2s;
+  color: #6C757D;
+}
+
+.icon svg:hover {
+  color: white;
 }
 
 .editInput {
@@ -225,14 +256,6 @@ tbody tr {
   cursor: pointer;
 }
 
-.icon svg {
-  transition: color 0.2s;
-}
-
-.icon svg:hover {
-  color: white;
-}
-
 .studentRow {
   cursor: pointer;
 }
@@ -253,7 +276,24 @@ tbody tr {
   background-color: inherit;
 }
 
-/* Add these styles to your existing StudentTable.module.css */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.sectionHeader span {
+  font-weight: bold;
+  white-space: nowrap;
+}
 
 .editSelect {
   width: 100%;
@@ -271,7 +311,6 @@ tbody tr {
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-/* Style for the datalist input */
 .editInput[list] {
   width: 100%;
   padding: 4px 8px;
@@ -284,4 +323,132 @@ tbody tr {
   outline: none;
   border-color: #007bff;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.selectedRow {
+  background-color: #e3f2fd !important;
+}
+
+.selectedRow:hover {
+  background-color: #bbdefb !important;
+}
+
+.errorRow {
+  background-color: #ffebee !important;
+}
+
+.errorMessages {
+  padding: 10px !important;
+  border-bottom: 2px solid #f44336;
+}
+
+.errorMessage {
+  color: #f44336;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.errorMessage:last-child {
+  margin-bottom: 0;
+}
+
+.errorInput {
+  border-color: #f44336 !important;
+  background-color: #ffebee;
+}
+
+/* Column widths using percentages for 10 columns */
+.tableWrapper table th:nth-child(1),
+.tableWrapper table td:nth-child(1) {
+  width: 5%;
+  min-width: 40px;
+}
+
+.tableWrapper table th:nth-child(2),
+.tableWrapper table td:nth-child(2) {
+  width: 10%;
+  min-width: 100px;
+}
+
+.tableWrapper table th:nth-child(3),
+.tableWrapper table td:nth-child(3) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(4),
+.tableWrapper table td:nth-child(4) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(5),
+.tableWrapper table td:nth-child(5) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(6),
+.tableWrapper table td:nth-child(6) {
+  width: 8%;
+  min-width: 80px;
+}
+
+.tableWrapper table th:nth-child(7),
+.tableWrapper table td:nth-child(7) {
+  width: 12%;
+  min-width: 110px;
+}
+
+.tableWrapper table th:nth-child(8),
+.tableWrapper table td:nth-child(8) {
+  width: 8%;
+  min-width: 70px;
+}
+
+.tableWrapper table th:nth-child(9),
+.tableWrapper table td:nth-child(9) {
+  width: 8%;
+  min-width: 70px;
+}
+
+.tableWrapper table th:nth-child(10),
+.tableWrapper table td:nth-child(10) {
+  width: 8%;
+  min-width: 70px;
+}
+
+.action-button {
+  cursor: pointer;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .details {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Allow horizontal scroll only on mobile */
+  .studentTableContainer {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .tableWrapper table th:nth-child(3),
+  .tableWrapper table td:nth-child(3),
+  .tableWrapper table th:nth-child(4),
+  .tableWrapper table td:nth-child(4),
+  .tableWrapper table th:nth-child(5),
+  .tableWrapper table td:nth-child(5) {
+    width: 11%;
+    min-width: 100px;
+  }
+  
+  .tableWrapper table th:nth-child(7),
+  .tableWrapper table td:nth-child(7) {
+    width: 10%;
+    min-width: 100px;
+  }
 }

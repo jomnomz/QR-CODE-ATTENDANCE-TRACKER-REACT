@@ -1,11 +1,7 @@
-// routes/webhooks.js
 import express from 'express';
-import { supabase } from '../config/supabase'; 
+import { supabase } from '../config/supabase.js'; 
 
 const router = express.Router();
-
-// This should be configured in Supabase Auth → URL Configuration
-// Set SITE_URL to your frontend URL and add /api/webhooks/auth as the redirect
 
 router.post('/auth', async (req, res) => {
   try {
@@ -14,7 +10,6 @@ router.post('/auth', async (req, res) => {
     if (type === 'user.updated' || type === 'user.signedup') {
       const userEmail = user.email;
       
-      // Update teacher status to active when user confirms/creates account
       const { error } = await supabase
         .from('teachers')
         .update({
@@ -27,7 +22,6 @@ router.post('/auth', async (req, res) => {
         console.error('Error updating teacher status:', error);
       }
 
-      // Update users table status
       await supabase
         .from('users')
         .update({

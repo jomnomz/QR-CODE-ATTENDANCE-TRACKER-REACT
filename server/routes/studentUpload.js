@@ -5,23 +5,21 @@ import { excelUpload } from '../middleware/excelUpload.js';
 import { supabase } from '../config/supabase.js';
 import stream from 'stream';
 import path from 'path';
-import { formatPhilippinePhone } from '../../src/Utils/phoneValidation.js'; 
+import { formatPhilippinePhone } from '../../src/Utils/PhoneValidation.js'; 
 import { validateStudentData } from '../../src/Utils/StudentDataValidation.js'; 
 
 const router = express.Router();
 
-// CSV headers mapping
 const csvHeaders = {
   lrn: ['LRN', 'lrn', 'Student LRN', 'student_lrn'],
-  first_name: ['First Name', 'first_name', 'First Name', 'First_Name'],
-  last_name: ['Last Name', 'last_name', 'Last Name', 'Last_Name'],
-  middle_name: ['Middle Name', 'middle_name', 'Middle Name', 'Middle_Name'],
+  first_name: ['First Name', 'first_name', 'First_Name', 'Given Name', 'Given_Name', 'First'],
+  last_name: ['Last Name', 'last_name', 'Last_Name', 'Surname', 'Family Name', 'Family_Name', 'Last'],
+  middle_name: ['Middle Name', 'middle_name', 'Middle_Name', 'Middle Initial', 'Middle_Initial', 'Middle', 'MI'],
   grade: ['Grade', 'grade', 'Grade Level', 'Grade_Level'],
   section: ['Section', 'section', 'Class Section', 'Class_Section'],
   email: ['Email', 'email', 'Student Email', 'Student_Email'],
   phone_number: ['Phone Number', 'phone_number', 'Phone', 'Student Phone', 'Student_Phone'],
   
-  // Guardian headers (optional)
   guardian_first_name: ['Guardian First Name', 'guardian_first_name', 'Parent First Name', 'Parent_First_Name'],
   guardian_middle_name: ['Guardian Middle Name', 'guardian_middle_name', 'Parent Middle Name', 'Parent_Middle_Name'],
   guardian_last_name: ['Guardian Last Name', 'guardian_last_name', 'Parent Last Name', 'Parent_Last_Name'],
@@ -29,7 +27,6 @@ const csvHeaders = {
   guardian_email: ['Guardian Email', 'guardian_email', 'Parent Email', 'Parent_Email']
 };
 
-// Helper to get value from CSV row
 const getCsvValue = (data, keys) => {
   for (const key of keys) {
     if (data[key] !== undefined && data[key] !== null && data[key].toString().trim() !== '') {
@@ -39,7 +36,6 @@ const getCsvValue = (data, keys) => {
   return '';
 };
 
-// Clean data - convert empty strings to null for optional fields
 const cleanStudentData = (student) => {
   const cleaned = {};
   const optionalFields = ['email', 'phone_number', 'middle_name', 'guardian_first_name', 
@@ -48,7 +44,6 @@ const cleanStudentData = (student) => {
   Object.keys(student).forEach(key => {
     if (student[key] !== undefined && student[key] !== null) {
       const value = student[key].toString().trim();
-      // Convert empty optional fields to null, keep required fields as empty string for validation
       if (optionalFields.includes(key) && value === '') {
         cleaned[key] = null;
       } else {
@@ -61,16 +56,13 @@ const cleanStudentData = (student) => {
   return cleaned;
 };
 
-// Add phone fields to Twilio format before database insertion
 const formatPhoneFieldsForDatabase = (student) => {
   const formatted = { ...student };
   
-  // Format student phone if present
   if (formatted.phone_number) {
     formatted.phone_number = formatPhilippinePhone(formatted.phone_number);
   }
   
-  // Format guardian phone if present
   if (formatted.guardian_phone_number) {
     formatted.guardian_phone_number = formatPhilippinePhone(formatted.guardian_phone_number);
   }
@@ -78,7 +70,56 @@ const formatPhoneFieldsForDatabase = (student) => {
   return formatted;
 };
 
-// ALL-OR-NOTHING UPLOAD
+const findGradeAndSectionIds = async (gradeText, sectionText) => {
+  try {
+    // Clean grade - just get the number
+    let gradeLevel = gradeText.toString().trim();
+    const numMatch = gradeLevel.match(/\d+/);
+    if (numMatch) {
+      gradeLevel = numMatch[0]; // Just the number
+    } else {
+      gradeLevel = gradeLevel.replace(/\D/g, ''); // Remove non-digits
+    }
+    
+    if (!gradeLevel) {
+      return { error: `Invalid grade: "${gradeText}"` };
+    }
+
+    console.log(`🔍 Looking for grade: "${gradeLevel}" and section: "${sectionText}"`);
+    
+    // Find the grade
+    const { data: gradeData, error: gradeError } = await supabase
+      .from('grades')
+      .select('id')
+      .eq('grade_level', gradeLevel)
+      .single();
+
+    if (gradeError || !gradeData) {
+      return { error: `Grade "${gradeText}" (as "${gradeLevel}") not found in database.` };
+    }
+
+    const gradeId = gradeData.id;
+
+    // Find the section for this grade
+    const { data: sectionData, error: sectionError } = await supabase
+      .from('sections')
+      .select('id')
+      .eq('grade_id', gradeId)
+      .eq('section_name', sectionText.toString().trim())
+      .single();
+
+    if (sectionError || !sectionData) {
+      return { error: `Section "${sectionText}" not found for grade "${gradeLevel}".` };
+    }
+
+    const sectionId = sectionData.id;
+
+    return { gradeId, sectionId, error: null };
+  } catch (error) {
+    return { error: `Error finding grade/section: ${error.message}` };
+  }
+};
+
 router.post('/upload', excelUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -93,7 +134,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
     let rawStudentData = [];
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
 
-    // Process Excel file
     if (fileExtension === '.xlsx' || fileExtension === '.xls') {
       const rows = await readXlsxFile(req.file.buffer);
       console.log(`📊 Excel file has ${rows.length} rows`);
@@ -108,9 +148,7 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       const [headers, ...dataRows] = rows;
       console.log('📋 Excel headers:', headers);
       
-      // Process rows with flexible header mapping
       rawStudentData = dataRows.map((row, index) => {
-        // Create a map of header positions
         const headerMap = {};
         headers.forEach((header, idx) => {
           if (header) {
@@ -119,7 +157,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
           }
         });
         
-        // Helper function to get value by header name
         const getValue = (possibleHeaders) => {
           for (const header of possibleHeaders) {
             const headerLower = header.toLowerCase().trim();
@@ -150,7 +187,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         return student;
       });
 
-    // Process CSV file
     } else if (fileExtension === '.csv') {
       rawStudentData = await new Promise((resolve, reject) => {
         const results = [];
@@ -199,25 +235,18 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     }
 
-    // ALL-OR-NOTHING VALIDATION
     const validationResults = [];
     const duplicateLRNs = new Set();
     const lrnSet = new Set();
     
-    // First pass: validate all records
+    // First pass: validate data
     rawStudentData.forEach((student, index) => {
-      const rowNumber = index + 2; // +2 for header row and 1-indexing
-      
-      // Clean the data
+      const rowNumber = index + 2;
+
       const cleanedStudent = cleanStudentData(student);
-      
-      // Format phone numbers for database/Twilio
       const formattedStudent = formatPhoneFieldsForDatabase(cleanedStudent);
-      
-      // Validate the student data using your validation function
       const validationErrors = validateStudentData(formattedStudent);
       
-      // Check for duplicate LRN within the same file
       if (formattedStudent.lrn) {
         if (lrnSet.has(formattedStudent.lrn)) {
           validationErrors.lrn = `LRN ${formattedStudent.lrn} is duplicated in the file`;
@@ -235,14 +264,12 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     });
 
-    // Check if ANY record has errors
     const invalidRecords = validationResults.filter(r => !r.isValid);
     const validRecords = validationResults.filter(r => r.isValid);
     
     console.log(`✅ Valid records: ${validRecords.length}`);
     console.log(`❌ Invalid records: ${invalidRecords.length}`);
 
-    // ALL-OR-NOTHING: If ANY record is invalid, reject entire upload
     if (invalidRecords.length > 0) {
       const errorMessages = invalidRecords.map(record => 
         `Row ${record.row}: ${Object.values(record.errors).join(', ')}`
@@ -267,11 +294,54 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     }
 
-    // ALL RECORDS ARE VALID - proceed with upload
-    const allStudents = validationResults.map(r => r.student);
-    
-    // Check for existing LRNs in database
-    const lrns = allStudents.map(s => s.lrn).filter(lrn => lrn);
+    // Second pass: find grade and section IDs for valid records
+    console.log('🔍 Finding grade and section IDs for each student...');
+    const studentsWithIds = [];
+    const gradeSectionErrors = [];
+
+    for (const record of validRecords) {
+      const { student } = record;
+      
+      const result = await findGradeAndSectionIds(student.grade, student.section);
+      
+      if (result.error) {
+        gradeSectionErrors.push({
+          row: record.row,
+          student: student,
+          error: result.error
+        });
+      } else {
+        studentsWithIds.push({
+          ...student,
+          grade_id: result.gradeId,
+          section_id: result.sectionId
+        });
+      }
+    }
+
+    if (gradeSectionErrors.length > 0) {
+      console.log(`❌ ${gradeSectionErrors.length} students have invalid grade/section references`);
+      
+      return res.status(400).json({
+        success: false,
+        error: 'Some students reference non-existent grades or sections.',
+        gradeSectionErrors: gradeSectionErrors.slice(0, 10).map(err => ({
+          row: err.row,
+          lrn: err.student.lrn,
+          grade: err.student.grade,
+          section: err.student.section,
+          error: err.error
+        })),
+        summary: {
+          totalRecords: rawStudentData.length,
+          validData: studentsWithIds.length,
+          invalidReferences: gradeSectionErrors.length
+        }
+      });
+    }
+
+    // Check for existing LRNs
+    const lrns = studentsWithIds.map(s => s.lrn).filter(lrn => lrn);
     const existingLRNs = [];
     
     if (lrns.length > 0) {
@@ -289,15 +359,20 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       }
     }
 
-    // Separate new and existing students
-    const newStudents = allStudents.filter(student => !existingLRNs.includes(student.lrn));
-    const existingStudents = allStudents.filter(student => existingLRNs.includes(student.lrn));
+    // Prepare final student data for insertion (remove grade/section text, keep IDs)
+    const newStudents = studentsWithIds
+      .filter(student => !existingLRNs.includes(student.lrn))
+      .map(student => {
+        const { grade, section, ...rest } = student; // Remove grade/section text fields
+        return rest;
+      });
+
+    const existingStudents = studentsWithIds.filter(student => existingLRNs.includes(student.lrn));
 
     console.log(`📝 Found ${newStudents.length} new students and ${existingStudents.length} existing students`);
 
     let uploadedData = [];
 
-    // Only insert NEW students (skip existing ones)
     if (newStudents.length > 0) {
       console.log(`📝 Adding ${newStudents.length} new students to database...`);
       
@@ -317,12 +392,10 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       console.log('ℹ️ No new students to add');
     }
 
-    // Note: We're NOT updating existing students
     if (existingStudents.length > 0) {
       console.log(`ℹ️ Skipping ${existingStudents.length} existing students (not updated)`);
     }
 
-    // Prepare success response
     const newRecordsCreated = uploadedData.length;
     const existingRecordsSkipped = existingStudents.length;
 
@@ -334,13 +407,15 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         totalRecords: rawStudentData.length,
         newRecordsCreated: newRecordsCreated,
         existingRecordsSkipped: existingRecordsSkipped,
-        processedRecords: newRecordsCreated
+        processedRecords: newRecordsCreated,
+        gradeSectionErrors: gradeSectionErrors.length
       },
       newStudents: uploadedData || []
     };
 
-    // More descriptive message
-    if (newRecordsCreated === 0) {
+    if (gradeSectionErrors.length > 0) {
+      response.message = `Added ${newRecordsCreated} students but ${gradeSectionErrors.length} had invalid grade/section references.`;
+    } else if (newRecordsCreated === 0) {
       response.message = `No new students added. ${existingRecordsSkipped > 0 ? `All ${rawStudentData.length} students already exist in the system.` : 'File contained no valid data.'}`;
     } else if (existingRecordsSkipped === 0) {
       response.message = `Successfully added ${newRecordsCreated} new student(s)`;
@@ -355,7 +430,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
   } catch (error) {
     console.error('❌ Student upload error:', error);
     
-    // Provide more specific error messages
     let errorMessage = error.message;
     let statusCode = 500;
     
@@ -381,7 +455,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
   }
 });
 
-// Health check endpoint
 router.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 

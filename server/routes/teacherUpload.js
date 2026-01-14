@@ -5,56 +5,11 @@ import { excelUpload } from '../middleware/excelUpload.js';
 import { supabase } from '../config/supabase.js';
 import stream from 'stream';
 import path from 'path';
+import { validateTeacherData } from '../../src/Utils/TeacherValidation.js'; 
 
 const router = express.Router();
 
-// Validation function for teachers
-const validateTeacherData = (teacherData) => {
-  const errors = {};
-  
-  // REQUIRED FIELDS
-  if (!teacherData.employee_id?.toString().trim()) {
-    errors.employee_id = 'Employee ID is required';
-  }
-  
-  if (!teacherData.first_name?.toString().trim()) {
-    errors.first_name = 'First name is required';
-  }
-  
-  if (!teacherData.last_name?.toString().trim()) {
-    errors.last_name = 'Last name is required';
-  }
-  
-  // Optional fields - validate if provided
-  if (teacherData.email_address && !/\S+@\S+\.\S+/.test(teacherData.email_address.toString())) {
-    errors.email_address = 'Email address is invalid';
-  }
-  
-  // Phone validation - accepts Philippine mobile numbers and international formats
-  if (teacherData.phone_no) {
-    const phoneStr = teacherData.phone_no.toString().trim();
-    const digitsOnly = phoneStr.replace(/\D/g, '');
-    
-    // Remove leading 0 and check if it's 11 digits (Philippine mobile: 09XXXXXXXXX)
-    if (phoneStr.startsWith('09') && digitsOnly.length === 11) {
-      // Valid Philippine mobile number starting with 09
-    } 
-    // Check for +639 format
-    else if ((phoneStr.startsWith('+639') || phoneStr.startsWith('639')) && digitsOnly.length === 12) {
-      // Valid Philippine mobile number with country code
-    }
-    // Check for other international formats (10-15 digits)
-    else if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
-      // Valid international number
-    } else {
-      errors.phone_no = 'Phone number must be 10-15 digits. For Philippine numbers, use 09XXXXXXXXX or +639XXXXXXXXX';
-    }
-  }
-  
-  return errors;
-};
-
-// CSV headers mapping for teachers
+// CSV headers mapping
 const csvHeaders = {
   employee_id: ['Employee ID', 'employee_id', 'Employee_ID', 'ID Number', 'ID_Number', 'ID'],
   first_name: ['First Name', 'first_name', 'First_Name', 'Given Name', 'Given_Name', 'First'],
@@ -62,10 +17,12 @@ const csvHeaders = {
   middle_name: ['Middle Name', 'middle_name', 'Middle_Name', 'Middle Initial', 'Middle_Initial', 'Middle', 'MI'],
   email_address: ['Email', 'Email Address', 'email_address', 'Email_Address', 'email', 'E-mail'],
   phone_no: ['Phone', 'Phone Number', 'phone_no', 'Phone_Number', 'Contact Number', 'Contact_Number', 'Mobile', 'Cell', 'Cellphone'],
-  status: ['Status', 'status', 'Account Status', 'Account_Status']
+  status: ['Status', 'status', 'Account Status', 'Account_Status'],
+  subjects: ['Subjects', 'subjects', 'Subject Codes', 'Subject_Codes'],
+  grade_sections_teaching: ['Grade-Sections (Teaching)', 'grade_sections_teaching', 'Grade-Sections', 'Teaching Assignments', 'Grade-Sections (Teaching)'],
+  adviser_grade_section: ['Adviser Grade-Section', 'adviser_grade_section', 'Advisory Class', 'Adviser Grade-Section']
 };
 
-// Helper to get value from CSV row
 const getCsvValue = (data, keys) => {
   for (const key of keys) {
     if (data[key] !== undefined && data[key] !== null && data[key].toString().trim() !== '') {
@@ -75,15 +32,13 @@ const getCsvValue = (data, keys) => {
   return '';
 };
 
-// Clean data - convert empty strings to null for optional fields
 const cleanTeacherData = (teacher) => {
   const cleaned = {};
-  const optionalFields = ['email_address', 'phone_no', 'middle_name', 'status'];
+  const optionalFields = ['email_address', 'phone_no', 'middle_name', 'status', 'subjects', 'grade_sections_teaching', 'adviser_grade_section'];
   
   Object.keys(teacher).forEach(key => {
     if (teacher[key] !== undefined && teacher[key] !== null) {
       const value = teacher[key].toString().trim();
-      // Convert empty optional fields to null, keep required fields as empty string for validation
       if (optionalFields.includes(key) && value === '') {
         cleaned[key] = null;
       } else {
@@ -93,44 +48,303 @@ const cleanTeacherData = (teacher) => {
       cleaned[key] = null;
     }
   });
+  
+  // ✅✅✅ SET STATUS TO NULL (NO STATUS) FOR NEW TEACHERS ✅✅✅
+  // Don't set any default - leave it as null/empty
+  // The status column will be empty in the database
+  
   return cleaned;
 };
 
-// Format phone number consistently for database
-const formatPhoneNumber = (phone) => {
-  if (!phone) return null;
-  
-  const phoneStr = phone.toString().trim();
-  const digitsOnly = phoneStr.replace(/\D/g, '');
-  
-  // Convert Philippine numbers to +639 format for consistency
-  if (digitsOnly.length === 11 && digitsOnly.startsWith('09')) {
-    return '+63' + digitsOnly.substring(1);
-  }
-  
-  // If it's 10 digits and starts with 9, assume Philippine number without 0
-  if (digitsOnly.length === 10 && digitsOnly.startsWith('9')) {
-    return '+63' + digitsOnly;
-  }
-  
-  // If it's 12 digits and starts with 63, add +
-  if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) {
-    return '+' + digitsOnly;
-  }
-  
-  // Return original if it already has +, otherwise return as-is
-  return phoneStr.startsWith('+') ? phoneStr : '+' + digitsOnly;
-};
-
-// Validate status field
 const validateStatus = (status) => {
-  if (!status) return null;
+  // If status is provided and valid, keep it
+  // If not provided or empty, return null (no status)
+  if (!status || status.toString().trim() === '') return null;
+  
   const statusLower = status.toString().toLowerCase().trim();
   const validStatuses = ['pending', 'active', 'inactive'];
+  
   return validStatuses.includes(statusLower) ? statusLower : null;
 };
 
-// ALL-OR-NOTHING UPLOAD FOR TEACHERS
+const parseCommaSeparated = (str) => {
+  if (!str) return [];
+  return str.split(',').map(s => s.trim()).filter(s => s);
+};
+
+const parseGradeSection = (gradeSectionStr) => {
+  if (!gradeSectionStr) return null;
+  
+  const trimmed = gradeSectionStr.trim();
+  
+  const match1 = trimmed.match(/^(\d+)\s*-\s*(.+)$/);
+  if (match1) {
+    return {
+      grade: match1[1],
+      sectionName: match1[2].trim(),
+      display: trimmed
+    };
+  }
+  
+  const match2 = trimmed.match(/^(\d+)\s+(.+)$/);
+  if (match2) {
+    return {
+      grade: match2[1],
+      sectionName: match2[2].trim(),
+      display: trimmed
+    };
+  }
+  
+  const match3 = trimmed.match(/^(\d+)-(\d+)$/);
+  if (match3) {
+    return {
+      grade: match3[1],
+      sectionName: match3[2],
+      display: trimmed
+    };
+  }
+  
+  console.warn(`⚠️ Could not parse grade-section: "${trimmed}"`);
+  return null;
+};
+
+const findSubjectIds = async (subjectCodes) => {
+  if (!subjectCodes || subjectCodes.length === 0) return [];
+  
+  console.log(`🔍 Looking for subjects:`, subjectCodes);
+  
+  const { data: subjects, error } = await supabase
+    .from('subjects')
+    .select('id, subject_code, subject_name')
+    .in('subject_code', subjectCodes);
+    
+  if (error) {
+    console.error('Error finding subjects:', error);
+    return [];
+  }
+  
+  const subjectMap = {};
+  subjects?.forEach(subject => {
+    subjectMap[subject.subject_code] = subject.id;
+  });
+  
+  console.log(`✅ Found ${subjects?.length || 0} subjects`);
+  
+  return { subjectMap, foundSubjects: subjects || [] };
+};
+
+const findGradeSectionIds = async (gradeSectionStrings) => {
+  if (!gradeSectionStrings || gradeSectionStrings.length === 0) return [];
+  
+  console.log(`🔍 Looking for grade-sections:`, gradeSectionStrings);
+  
+  const parsedSections = [];
+  const gradeSectionMap = {};
+  
+  gradeSectionStrings.forEach(gradeSectionStr => {
+    const parsed = parseGradeSection(gradeSectionStr);
+    if (parsed) {
+      parsedSections.push(parsed);
+      gradeSectionMap[gradeSectionStr] = parsed;
+    } else {
+      console.warn(`⚠️ Invalid grade-section format: "${gradeSectionStr}"`);
+    }
+  });
+  
+  if (parsedSections.length === 0) {
+    console.log('No valid grade-sections found');
+    return { sectionIds: [], gradeSectionMap: {}, parsedSections: [] };
+  }
+  
+  const gradeLevels = [...new Set(parsedSections.map(s => s.grade))];
+  console.log(`Looking for grades: ${gradeLevels.join(', ')}`);
+  
+  const { data: grades, error: gradeError } = await supabase
+    .from('grades')
+    .select('id, grade_level')
+    .in('grade_level', gradeLevels);
+    
+  if (gradeError) {
+    console.error('Error finding grades:', gradeError);
+    return { sectionIds: [], gradeSectionMap: {}, parsedSections: [] };
+  }
+  
+  const gradeMap = {};
+  grades?.forEach(grade => {
+    gradeMap[grade.grade_level] = grade.id;
+  });
+  
+  console.log('📋 Fetching all sections for grades:', gradeLevels);
+  
+  const { data: allSections, error: sectionsError } = await supabase
+    .from('sections')
+    .select('id, section_name, grade_id, grade:grades(grade_level)')
+    .in('grade_id', Object.values(gradeMap));
+    
+  if (sectionsError) {
+    console.error('Error fetching sections:', sectionsError);
+    return { sectionIds: [], gradeSectionMap: {}, parsedSections: [] };
+  }
+  
+  console.log(`📊 Found ${allSections?.length || 0} total sections`);
+  
+  const sectionLookupMap = {};
+  const displayNameToSectionMap = {};
+  
+  allSections?.forEach(section => {
+    const key = `${section.grade.grade_level}-${section.section_name}`;
+    sectionLookupMap[key] = section.id;
+    
+    const displayKey = `${section.grade.grade_level} - ${section.section_name}`;
+    displayNameToSectionMap[displayKey.toLowerCase()] = section.id;
+  });
+  
+  console.log('Available section keys:', Object.keys(sectionLookupMap));
+  
+  const nameToNumberMap = {
+    'andres bonifacio': '1',
+    'antonio luna': '2', 
+    'apolinario mabini': '3',
+    'ati-atihan': '1',
+    'dinagyang': '2',
+    'disiplina': '1',
+    'pagkakaisa': '2',
+    'sipag at tiyaga': '3',
+    'taal': '1',
+    'vigan': '2'
+  };
+  
+  const sectionIds = [];
+  const sectionToGradeSectionMap = {};
+  
+  for (const gradeSectionStr in gradeSectionMap) {
+    const parsed = gradeSectionMap[gradeSectionStr];
+    const gradeId = gradeMap[parsed.grade];
+    
+    if (!gradeId) {
+      console.warn(`Grade ${parsed.grade} not found for ${gradeSectionStr}`);
+      continue;
+    }
+    
+    let sectionId = null;
+    
+    const searchKey = gradeSectionStr.toLowerCase();
+    if (displayNameToSectionMap[searchKey]) {
+      sectionId = displayNameToSectionMap[searchKey];
+      console.log(`✅ Direct match found: ${gradeSectionStr} -> ID: ${sectionId}`);
+    } else {
+      const sectionNameLower = parsed.sectionName.toLowerCase();
+      let sectionNumber = nameToNumberMap[sectionNameLower];
+      
+      if (!sectionNumber && /^\d+$/.test(parsed.sectionName)) {
+        sectionNumber = parsed.sectionName;
+      }
+      
+      if (sectionNumber) {
+        const key = `${parsed.grade}-${sectionNumber}`;
+        sectionId = sectionLookupMap[key];
+        
+        if (sectionId) {
+          console.log(`✅ Mapped "${gradeSectionStr}" to "${key}" -> ID: ${sectionId}`);
+        } else {
+          console.log(`❌ Section not found: ${gradeSectionStr} (tried: ${key})`);
+        }
+      } else {
+        console.log(`❌ No mapping for: ${gradeSectionStr}`);
+      }
+    }
+    
+    if (sectionId) {
+      sectionIds.push(sectionId);
+      sectionToGradeSectionMap[sectionId] = gradeSectionStr;
+    }
+  }
+  
+  console.log(`✅ Found ${sectionIds.length} sections`);
+  
+  return { 
+    sectionIds, 
+    gradeSectionMap: sectionToGradeSectionMap,
+    gradeMap,
+    parsedSections 
+  };
+};
+
+const assignTeacherSubjects = async (teacherId, subjectIds) => {
+  if (!subjectIds || subjectIds.length === 0) return { assigned: 0, errors: [] };
+  
+  const assignments = subjectIds.map(subjectId => ({
+    teacher_id: teacherId,
+    subject_id: subjectId
+  }));
+  
+  const { error } = await supabase
+    .from('teacher_subjects')
+    .upsert(assignments, { onConflict: 'teacher_id,subject_id' })
+    .select();
+    
+  if (error) {
+    console.error('Error assigning subjects to teacher:', error);
+    return { assigned: 0, errors: [error.message] };
+  }
+  
+  return { assigned: subjectIds.length, errors: [] };
+};
+
+const assignTeacherSections = async (teacherId, sectionIds, adviserSectionId = null) => {
+  if (!sectionIds || sectionIds.length === 0) return { assigned: 0, errors: [] };
+  
+  const assignments = sectionIds.map(sectionId => ({
+    teacher_id: teacherId,
+    section_id: sectionId,
+    is_adviser: adviserSectionId === sectionId
+  }));
+  
+  const { error } = await supabase
+    .from('teacher_sections')
+    .upsert(assignments, { onConflict: 'teacher_id,section_id' })
+    .select();
+    
+  if (error) {
+    console.error('Error assigning sections to teacher:', error);
+    return { assigned: 0, errors: [error.message] };
+  }
+  
+  return { assigned: sectionIds.length, errors: [] };
+};
+
+const assignTeacherSubjectSections = async (teacherId, subjectIds, sectionIds) => {
+  if (!subjectIds || !sectionIds || subjectIds.length === 0 || sectionIds.length === 0) {
+    return { assigned: 0, errors: [] };
+  }
+  
+  const assignments = [];
+  
+  for (const subjectId of subjectIds) {
+    for (const sectionId of sectionIds) {
+      assignments.push({
+        teacher_id: teacherId,
+        subject_id: subjectId,
+        section_id: sectionId
+      });
+    }
+  }
+  
+  if (assignments.length === 0) return { assigned: 0, errors: [] };
+  
+  const { error } = await supabase
+    .from('teacher_subject_sections')
+    .upsert(assignments, { onConflict: 'teacher_id,subject_id,section_id' })
+    .select();
+    
+  if (error) {
+    console.error('Error assigning teacher-subject-sections:', error);
+    return { assigned: 0, errors: [error.message] };
+  }
+  
+  return { assigned: assignments.length, errors: [] };
+};
+
 router.post('/upload', excelUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -140,12 +354,11 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     }
 
-    console.log('📁 Processing teacher file:', req.file.originalname);
+    console.log('\n📁 Processing teacher file:', req.file.originalname);
 
     let rawTeacherData = [];
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
 
-    // Process Excel file
     if (fileExtension === '.xlsx' || fileExtension === '.xls') {
       const rows = await readXlsxFile(req.file.buffer);
       console.log(`📊 Excel file has ${rows.length} rows`);
@@ -160,7 +373,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       const [headers, ...dataRows] = rows;
       console.log('📋 Excel headers:', headers);
       
-      // Map headers to lowercase for easier matching
       const headerMap = {};
       headers.forEach((header, index) => {
         if (header) {
@@ -169,10 +381,9 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         }
       });
       
-      console.log('🔍 Header mapping:', headerMap);
+      console.log('🔍 Header mapping (lowercase):', Object.keys(headerMap));
       
       rawTeacherData = dataRows.map((row, index) => {
-        // Helper function to get value by header name
         const getValue = (possibleHeaders) => {
           for (const header of possibleHeaders) {
             const headerLower = header.toLowerCase().trim();
@@ -185,19 +396,21 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         };
         
         const teacher = {
-          employee_id: getValue(['Employee ID', 'employee_id', 'Employee_ID', 'ID Number', 'ID_Number', 'ID']),
-          first_name: getValue(['First Name', 'first_name', 'First_Name', 'Given Name', 'Given_Name', 'First']),
-          last_name: getValue(['Last Name', 'last_name', 'Last_Name', 'Surname', 'Family Name', 'Family_Name', 'Last']),
-          middle_name: getValue(['Middle Name', 'middle_name', 'Middle_Name', 'Middle Initial', 'Middle_Initial', 'Middle', 'MI']),
-          email_address: getValue(['Email', 'Email Address', 'email_address', 'Email_Address', 'email', 'E-mail']),
-          phone_no: getValue(['Phone', 'Phone Number', 'phone_no', 'Phone_Number', 'Contact Number', 'Contact_Number', 'Mobile', 'Cell', 'Cellphone']),
-          status: getValue(['Status', 'status', 'Account Status', 'Account_Status'])
+          employee_id: getValue(csvHeaders.employee_id),
+          first_name: getValue(csvHeaders.first_name),
+          last_name: getValue(csvHeaders.last_name),
+          middle_name: getValue(csvHeaders.middle_name),
+          email_address: getValue(csvHeaders.email_address),
+          phone_no: getValue(csvHeaders.phone_no),
+          status: getValue(csvHeaders.status),
+          subjects: getValue(csvHeaders.subjects),
+          grade_sections_teaching: getValue(csvHeaders.grade_sections_teaching),
+          adviser_grade_section: getValue(csvHeaders.adviser_grade_section)
         };
         
         return teacher;
       });
 
-    // Process CSV file
     } else if (fileExtension === '.csv') {
       rawTeacherData = await new Promise((resolve, reject) => {
         const results = [];
@@ -214,7 +427,10 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
               middle_name: getCsvValue(data, csvHeaders.middle_name),
               email_address: getCsvValue(data, csvHeaders.email_address),
               phone_no: getCsvValue(data, csvHeaders.phone_no),
-              status: getCsvValue(data, csvHeaders.status)
+              status: getCsvValue(data, csvHeaders.status),
+              subjects: getCsvValue(data, csvHeaders.subjects),
+              grade_sections_teaching: getCsvValue(data, csvHeaders.grade_sections_teaching),
+              adviser_grade_section: getCsvValue(data, csvHeaders.adviser_grade_section)
             };
             results.push(teacher);
           })
@@ -240,46 +456,36 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     }
 
-    // DEBUG: Show sample data
     console.log('\n🔍 Sample data (first 2 rows):');
     rawTeacherData.slice(0, 2).forEach((teacher, index) => {
-      console.log(`Row ${index + 2}:`, JSON.stringify(teacher, null, 2));
+      console.log(`Row ${index + 2}:`, {
+        employee_id: teacher.employee_id,
+        name: `${teacher.first_name} ${teacher.last_name}`,
+        subjects: teacher.subjects,
+        grade_sections_teaching: teacher.grade_sections_teaching,
+        adviser_grade_section: teacher.adviser_grade_section,
+        status: teacher.status || '(empty)'
+      });
     });
 
-    // ALL-OR-NOTHING VALIDATION
     const validationResults = [];
     const duplicateEmployeeIds = new Set();
     const employeeIdSet = new Set();
     const duplicateEmails = new Set();
     const emailSet = new Set();
     
-    // First pass: validate all records
+    console.log('\n🔍 Validating all records...');
     rawTeacherData.forEach((teacher, index) => {
-      const rowNumber = index + 2; // +2 for header row and 1-indexing
+      const rowNumber = index + 2;
       
-      // Clean the data
       const cleanedTeacher = cleanTeacherData(teacher);
       
-      // Format phone number if provided
-      if (cleanedTeacher.phone_no) {
-        cleanedTeacher.phone_no = formatPhoneNumber(cleanedTeacher.phone_no);
-      }
+      cleanedTeacher.status = validateStatus(cleanedTeacher.status);
       
-      // Validate and normalize status
-      if (cleanedTeacher.status) {
-        const normalizedStatus = validateStatus(cleanedTeacher.status);
-        if (normalizedStatus) {
-          cleanedTeacher.status = normalizedStatus;
-        } else {
-          // Invalid status value
-          cleanedTeacher.status = null;
-        }
-      }
+      console.log(`Row ${rowNumber} - Status: "${teacher.status}" -> Cleaned: "${cleanedTeacher.status}" (will be NULL/empty in DB)`);
       
-      // Validate the teacher data
       const validationErrors = validateTeacherData(cleanedTeacher);
       
-      // Check for duplicate Employee ID within the same file
       if (cleanedTeacher.employee_id) {
         if (employeeIdSet.has(cleanedTeacher.employee_id)) {
           validationErrors.employee_id = `Employee ID ${cleanedTeacher.employee_id} is duplicated in the file`;
@@ -289,7 +495,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         }
       }
       
-      // Check for duplicate Email within the same file (if provided)
       if (cleanedTeacher.email_address) {
         if (emailSet.has(cleanedTeacher.email_address)) {
           validationErrors.email_address = `Email ${cleanedTeacher.email_address} is duplicated in the file`;
@@ -307,7 +512,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     });
 
-    // Check if ANY record has errors
     const invalidRecords = validationResults.filter(r => !r.isValid);
     const validRecords = validationResults.filter(r => r.isValid);
     
@@ -315,15 +519,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
     console.log(`✅ Valid records: ${validRecords.length}`);
     console.log(`❌ Invalid records: ${invalidRecords.length}`);
     
-    // Show first few errors if any
-    if (invalidRecords.length > 0) {
-      console.log('\n❌ First 3 errors found:');
-      invalidRecords.slice(0, 3).forEach(record => {
-        console.log(`Row ${record.row}:`, record.errors);
-      });
-    }
-
-    // ALL-OR-NOTHING: If ANY record is invalid, reject entire upload
     if (invalidRecords.length > 0) {
       const errorMessages = invalidRecords.map(record => 
         `Row ${record.row}: ${Object.values(record.errors).join(', ')}`
@@ -333,10 +528,14 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         success: false,
         error: 'File contains invalid data. Please fix all errors and try again.',
         invalidCount: invalidRecords.length,
-        invalidRecords: invalidRecords.slice(0, 10).map(record => ({
+        invalidRecords: invalidRecords.slice(0, 5).map(record => ({
           row: record.row,
-          data: record.teacher,
-          errors: record.errors
+          data: {
+            employee_id: record.teacher.employee_id,
+            name: `${record.teacher.first_name} ${record.teacher.last_name}`,
+            status: record.teacher.status,
+            errors: record.errors
+          }
         })),
         errorSummary: errorMessages.slice(0, 5),
         summary: {
@@ -349,20 +548,22 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     }
 
-    // ALL RECORDS ARE VALID - proceed with upload
     const allTeachers = validationResults.map(r => r.teacher);
     
-    // Check for existing Employee IDs and Emails in database
-    const employeeIds = allTeachers.map(t => t.employee_id).filter(id => id);
-    const emails = allTeachers.map(t => t.email_address).filter(email => email);
+    console.log('\n📋 All teacher statuses before insert:');
+    allTeachers.forEach((teacher, index) => {
+      console.log(`Teacher ${index + 1}: ${teacher.first_name} ${teacher.last_name} - Status: ${teacher.status === null ? 'NULL (No Status)' : teacher.status}`);
+    });
+    
+    const employeeIds = allTeachers.map(t => t.employee_id);
     
     const existingEmployeeIds = [];
-    const existingEmails = [];
     
     if (employeeIds.length > 0) {
+      console.log(`\n🔍 Checking for existing teachers in database...`);
       const { data: existingTeachersById, error: fetchErrorId } = await supabase
         .from('teachers')
-        .select('employee_id')
+        .select('id, employee_id, status')
         .in('employee_id', employeeIds);
       
       if (fetchErrorId) {
@@ -374,22 +575,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       }
     }
     
-    if (emails.length > 0) {
-      const { data: existingTeachersByEmail, error: fetchErrorEmail } = await supabase
-        .from('teachers')
-        .select('email_address')
-        .in('email_address', emails.filter(email => email !== null));
-      
-      if (fetchErrorEmail) {
-        console.error('Error checking existing Emails:', fetchErrorEmail);
-        throw new Error(`Database error: ${fetchErrorEmail.message}`);
-      } else if (existingTeachersByEmail && existingTeachersByEmail.length > 0) {
-        existingEmails.push(...existingTeachersByEmail.map(t => t.email_address));
-        console.log(`⚠️ Found ${existingEmails.length} existing Emails in database`);
-      }
-    }
-
-    // Separate new and existing teachers
     const newTeachers = allTeachers.filter(teacher => !existingEmployeeIds.includes(teacher.employee_id));
     const existingTeachers = allTeachers.filter(teacher => existingEmployeeIds.includes(teacher.employee_id));
 
@@ -398,15 +583,48 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
     console.log(`📋 Existing teachers (skipped): ${existingTeachers.length}`);
 
     let uploadedData = [];
+    let assignmentSummary = {
+      subjectsAssigned: 0,
+      sectionsAssigned: 0,
+      teachingAssignmentsCreated: 0,
+      assignmentErrors: []
+    };
 
-    // Only insert NEW teachers (skip existing ones)
+    console.log('\n🔍 Pre-fetching all subjects and grade-sections...');
+    
+    const allSubjectCodes = [...new Set(newTeachers.flatMap(t => 
+      parseCommaSeparated(t.subjects)
+    ).filter(code => code))];
+    
+    const allGradeSections = [...new Set(newTeachers.flatMap(t => {
+      const teaching = parseCommaSeparated(t.grade_sections_teaching);
+      const adviser = t.adviser_grade_section ? [t.adviser_grade_section] : [];
+      return [...teaching, ...adviser].filter(gs => gs);
+    }))];
+    
+    console.log(`📚 Unique subject codes to find: ${allSubjectCodes.length}`, allSubjectCodes);
+    console.log(`🏫 Unique grade-sections to find: ${allGradeSections.length}`, allGradeSections);
+
+    const { subjectMap, foundSubjects } = await findSubjectIds(allSubjectCodes);
+    const { sectionIds: allSectionIds, gradeSectionMap } = await findGradeSectionIds(allGradeSections);
+
+    console.log(`✅ Found ${foundSubjects?.length || 0} subjects in database`);
+    console.log(`✅ Found ${allSectionIds?.length || 0} grade-sections in database`);
+
     if (newTeachers.length > 0) {
       console.log(`\n💾 Adding ${newTeachers.length} new teachers to database...`);
       
+      const teachersToInsert = newTeachers.map(teacher => {
+        const { subjects, grade_sections_teaching, adviser_grade_section, ...teacherData } = teacher;
+        return teacherData;
+      });
+      
+      console.log('First teacher to insert (check status - should be null):', teachersToInsert[0]);
+      
       const { data: insertedData, error: insertError } = await supabase
         .from('teachers')
-        .insert(newTeachers)
-        .select();
+        .insert(teachersToInsert)
+        .select('id, employee_id, first_name, last_name, email_address, status');
 
       if (insertError) {
         console.error('❌ Database insert error:', insertError);
@@ -415,16 +633,106 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       
       uploadedData = insertedData || [];
       console.log(`✅ Successfully added ${uploadedData.length} new teachers`);
+      
+      console.log('📋 Inserted teachers with statuses:');
+      uploadedData.forEach(teacher => {
+        console.log(`- ${teacher.first_name} ${teacher.last_name}: Status = ${teacher.status === null ? 'NULL (No Status)' : teacher.status}`);
+      });
+      
+      console.log('\n📚 Processing teacher assignments...');
+      
+      for (let i = 0; i < uploadedData.length; i++) {
+        const teacher = uploadedData[i];
+        const originalTeacher = newTeachers[i];
+        
+        console.log(`\n👨‍🏫 Teacher ${teacher.employee_id}: ${teacher.first_name} ${teacher.last_name}`);
+        
+        const subjectCodes = parseCommaSeparated(originalTeacher.subjects);
+        const teachingGradeSections = parseCommaSeparated(originalTeacher.grade_sections_teaching);
+        const adviserGradeSection = originalTeacher.adviser_grade_section;
+        
+        console.log(`   Subjects: ${subjectCodes.join(', ') || 'None'}`);
+        console.log(`   Teaching: ${teachingGradeSections.join(', ') || 'None'}`);
+        console.log(`   Adviser: ${adviserGradeSection || 'None'}`);
+        
+        const subjectIds = subjectCodes.map(code => subjectMap[code]).filter(id => id);
+        const missingSubjects = subjectCodes.filter(code => !subjectMap[code]);
+        
+        if (missingSubjects.length > 0) {
+          console.log(`   ⚠️ Subjects not found: ${missingSubjects.join(', ')}`);
+          assignmentSummary.assignmentErrors.push(
+            `Teacher ${teacher.employee_id}: Subjects not found - ${missingSubjects.join(', ')}`
+          );
+        }
+        
+        if (subjectIds.length > 0) {
+          const result = await assignTeacherSubjects(teacher.id, subjectIds);
+          assignmentSummary.subjectsAssigned += result.assigned;
+          console.log(`   ✅ Assigned ${result.assigned} subjects`);
+        }
+        
+        const teachingSectionIds = teachingGradeSections
+          .map(gradeSectionStr => {
+            for (const [sectionId, gsStr] of Object.entries(gradeSectionMap)) {
+              if (gsStr === gradeSectionStr) {
+                return parseInt(sectionId);
+              }
+            }
+            return null;
+          })
+          .filter(id => id);
+        
+        let adviserSectionId = null;
+        if (adviserGradeSection) {
+          for (const [sectionId, gsStr] of Object.entries(gradeSectionMap)) {
+            if (gsStr === adviserGradeSection) {
+              adviserSectionId = parseInt(sectionId);
+              break;
+            }
+          }
+          if (!adviserSectionId) {
+            console.log(`   ⚠️ Adviser grade-section not found: ${adviserGradeSection}`);
+            assignmentSummary.assignmentErrors.push(
+              `Teacher ${teacher.employee_id}: Adviser grade-section not found - ${adviserGradeSection}`
+            );
+          }
+        }
+        
+        const allSectionIdsForTeacher = [...new Set(teachingSectionIds)];
+        if (adviserSectionId && !allSectionIdsForTeacher.includes(adviserSectionId)) {
+          allSectionIdsForTeacher.push(adviserSectionId);
+        }
+        
+        if (allSectionIdsForTeacher.length > 0) {
+          const result = await assignTeacherSections(
+            teacher.id, 
+            allSectionIdsForTeacher,
+            adviserSectionId
+          );
+          assignmentSummary.sectionsAssigned += result.assigned;
+          console.log(`   ✅ Assigned ${result.assigned} sections (Adviser: ${adviserSectionId ? 'Yes' : 'No'})`);
+        } else {
+          console.log(`   ℹ️ No sections assigned (none found in database)`);
+        }
+        
+        if (subjectIds.length > 0 && teachingSectionIds.length > 0) {
+          const result = await assignTeacherSubjectSections(
+            teacher.id,
+            subjectIds,
+            teachingSectionIds
+          );
+          assignmentSummary.teachingAssignmentsCreated += result.assigned;
+          console.log(`   ✅ Created ${result.assigned} teaching assignments`);
+        }
+      }
     } else {
       console.log('ℹ️ No new teachers to add');
     }
 
-    // Note: We're NOT updating existing teachers
     if (existingTeachers.length > 0) {
       console.log(`ℹ️ Skipping ${existingTeachers.length} existing teachers (not updated)`);
     }
 
-    // Prepare success response
     const newRecordsCreated = uploadedData.length;
     const existingRecordsSkipped = existingTeachers.length;
 
@@ -437,27 +745,58 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         totalRecords: rawTeacherData.length,
         newRecordsCreated: newRecordsCreated,
         existingRecordsSkipped: existingRecordsSkipped,
-        processedRecords: newRecordsCreated
+        subjectsAssigned: assignmentSummary.subjectsAssigned,
+        sectionsAssigned: assignmentSummary.sectionsAssigned,
+        teachingAssignmentsCreated: assignmentSummary.teachingAssignmentsCreated,
+        assignmentErrors: assignmentSummary.assignmentErrors.length
       },
       newTeachers: uploadedData || []
     };
 
-    // Set message based on result
+    const messageParts = [];
+    
+    if (newRecordsCreated > 0) {
+      messageParts.push(`Added ${newRecordsCreated} new teacher(s)`);
+    }
+    
+    if (assignmentSummary.subjectsAssigned > 0) {
+      messageParts.push(`assigned ${assignmentSummary.subjectsAssigned} subject(s)`);
+    }
+    
+    if (assignmentSummary.sectionsAssigned > 0) {
+      messageParts.push(`assigned ${assignmentSummary.sectionsAssigned} section(s)`);
+    }
+    
+    if (assignmentSummary.teachingAssignmentsCreated > 0) {
+      messageParts.push(`created ${assignmentSummary.teachingAssignmentsCreated} teaching assignment(s)`);
+    }
+    
+    if (existingRecordsSkipped > 0) {
+      messageParts.push(`${existingRecordsSkipped} existing teacher(s) skipped`);
+    }
+    
+    if (assignmentSummary.assignmentErrors.length > 0) {
+      messageParts.push(`${assignmentSummary.assignmentErrors.length} assignment error(s)`);
+    }
+    
     if (newRecordsCreated === 0) {
-      response.message = `No new teachers added. ${existingRecordsSkipped > 0 ? `All ${rawTeacherData.length} teachers already exist in the system.` : 'File contained no valid data.'}`;
-    } else if (existingRecordsSkipped === 0) {
-      response.message = `Successfully added ${newRecordsCreated} new teacher(s)`;
+      response.message = `No new teachers added. ${existingRecordsSkipped > 0 ? `All ${rawTeacherData.length} teachers already exist.` : 'No valid data found.'}`;
     } else {
-      response.message = `Successfully added ${newRecordsCreated} new teacher(s). ${existingRecordsSkipped} existing teacher(s) were not modified.`;
+      response.message = messageParts.join(', ') + '.';
+    }
+    
+    if (assignmentSummary.assignmentErrors.length > 0) {
+      response.assignmentErrors = assignmentSummary.assignmentErrors.slice(0, 3);
     }
 
-    console.log(`\n🎉 Upload completed: ${response.message}`);
+    console.log(`\n🎉 Upload completed successfully!`);
+    console.log(`📋 Summary: ${response.message}`);
+    
     res.json(response);
 
   } catch (error) {
     console.error('\n❌ Teacher upload error:', error);
     
-    // Provide more specific error messages
     let errorMessage = error.message;
     let statusCode = 500;
     
@@ -484,72 +823,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-});
-
-router.post('/accept-invitation', async (req, res) => {
-  try {
-    const { email } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email required' });
-    }
-    
-    console.log(`✅ Teacher accepting invitation: ${email}`);
-    
-    // Update teacher status to active
-    const { error: teacherError } = await supabase
-      .from('teachers')
-      .update({
-        status: 'active',
-        updated_at: new Date().toISOString()
-      })
-      .eq('email_address', email);
-    
-    if (teacherError) {
-      console.error('❌ Error updating teacher status:', teacherError);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to update teacher status' 
-      });
-    }
-    
-    // Update users table status
-    const { error: userError } = await supabase
-      .from('users')
-      .update({
-        status: 'active',
-        updated_at: new Date().toISOString()
-      })
-      .eq('email', email);
-    
-    if (userError) {
-      console.error('⚠️ Error updating users table:', userError);
-      // Continue anyway since teacher update succeeded
-    }
-    
-    console.log(`✅ Updated ${email} to active status`);
-    
-    res.json({
-      success: true,
-      message: 'Account activated successfully'
-    });
-    
-  } catch (error) {
-    console.error('❌ Error accepting invitation:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Health check endpoint
-router.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    service: 'Teacher Upload API',
-    timestamp: new Date().toISOString()
-  });
 });
 
 export default router;

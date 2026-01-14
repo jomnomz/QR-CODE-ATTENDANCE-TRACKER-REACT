@@ -16,21 +16,28 @@ export const formatTeacherDisplayName = (teacher, includeTitle = false) => {
 };
 
 export const formatGradeSection = (studentOrAttendance) => {
-  // Handle both student objects and attendance objects
+  // Handle attendance objects
   if (studentOrAttendance.grade_section) {
     return studentOrAttendance.grade_section;
   }
   
-  // If separate grade and section fields
-  const grade = studentOrAttendance.grade || '';
-  const section = studentOrAttendance.section || '';
-  
-  if (grade && section) {
-    return `${grade} - ${section}`;
-  } else if (grade) {
-    return grade;
-  } else if (section) {
-    return section;
+  // Handle student objects with new structure (objects)
+  if (studentOrAttendance.grade && studentOrAttendance.section) {
+    const grade = typeof studentOrAttendance.grade === 'object' 
+      ? studentOrAttendance.grade.grade_level 
+      : studentOrAttendance.grade;
+    
+    const section = typeof studentOrAttendance.section === 'object'
+      ? studentOrAttendance.section.section_name
+      : studentOrAttendance.section;
+    
+    if (grade && section) {
+      return `Grade ${grade} - ${section}`;
+    } else if (grade) {
+      return `Grade ${grade}`;
+    } else if (section) {
+      return section;
+    }
   }
   
   return "NA";
@@ -60,9 +67,10 @@ export const formatTime = (timeString) => {
 export const formatAttendanceStatus = (status) => {
   const statusMap = {
     present: 'Present',
+    late: 'Late',
     absent: 'Absent'
   };
-  return statusMap[status] || 'Absent';
+  return statusMap[status] || 'Unknown';
 };
 
 export const formatDateTime = (dateString) => {

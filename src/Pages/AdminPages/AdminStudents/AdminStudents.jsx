@@ -6,23 +6,23 @@ import FileUploadModal from "../../../Components/Modals/FileUploadModal/FileUplo
 import Button from "../../../Components/UI/Buttons/Button/Button.jsx";
 import StudentTable from '../../../Components/Tables/StudentTable/StudentTable.jsx';
 import Input from '../../../Components/UI/Input/Input.jsx';
-import DropDownButton from '../../../Components/UI/Buttons/DropDownButton/DropDownButton.jsx';
-import ActionsDropdownButton from '../../../Components/UI/Buttons/ActionsDropDownButton/ActionsDropDownButton.jsx';
-import DeleteStudentModal from '../../../Components/Modals/DeleteStudentModal/DeleteStudentModal.jsx';
+import DeleteEntityModal from '../../../Components/Modals/DeleteEntityModal/DeleteEntityModal.jsx';
 import DownloadQRModal from '../../../Components/Modals/DownloadQRModal/DownloadQRModal.jsx';
+import SectionDropdown from '../../../Components/UI/Buttons/SectionDropdown/SectionDropdown.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {faUsers} from "@fortawesome/free-solid-svg-icons";
+import { faUsers, faTrash, faQrcode } from "@fortawesome/free-solid-svg-icons";
 import { useToast } from '../../../Components/Toast/ToastContext/ToastContext.jsx';
 import { StudentService } from '../../../Utils/EntityService.js';
+import { supabase } from '../../../lib/supabase'; // Add supabase import
 
 function AdminStudents() {
   const { success, error: toastError } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [availableSections, setAvailableSections] = useState([]);
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [currentGrade, setCurrentGrade] = useState('7');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteModalMode, setDeleteModalMode] = useState('single');
   const [studentToDelete, setStudentToDelete] = useState(null);
@@ -30,33 +30,115 @@ function AdminStudents() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  
+  // Add these new states
+  const [gradesData, setGradesData] = useState([]);
+  const [sectionsData, setSectionsData] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
 
-  // Create an instance of StudentService
   const studentService = new StudentService();
 
-  // Fetch ALL students from all grades
+  // Fetch grades data
+  const fetchGrades = useCallback(async () => {
+    try {
+      console.log('🔄 Fetching grades data...');
+      const { data, error } = await supabase
+        .from('grades')
+        .select('*')
+        .order('id');
+      
+      if (error) throw error;
+      setGradesData(data || []);
+      console.log('✅ Grades loaded:', data?.length || 0);
+    } catch (err) {
+      console.error('❌ Error loading grades:', err);
+      toastError('Failed to load grades data');
+    }
+  }, [toastError]);
+
+  // Fetch sections data
+  const fetchSections = useCallback(async () => {
+    try {
+      console.log('🔄 Fetching sections data...');
+      const { data, error } = await supabase
+        .from('sections')
+        .select(`
+          *,
+          grade:grades(grade_level)
+        `)
+        .order('id');
+      
+      if (error) throw error;
+      setSectionsData(data || []);
+      console.log('✅ Sections loaded:', data?.length || 0);
+    } catch (err) {
+      console.error('❌ Error loading sections:', err);
+      toastError('Failed to load sections data');
+    }
+  }, [toastError]);
+
   const fetchAllStudents = useCallback(async () => {
     try {
       console.log('🔄 Fetching ALL students from all grades...');
       const allStudentsData = await studentService.fetchAll();
-      setAllStudents(allStudentsData);
-      console.log('✅ All students loaded:', allStudentsData.length);
+      
+      // Transform student data to include proper grade and section names
+      const transformedStudents = allStudentsData.map(student => {
+        // Find grade name from gradesData using grade_id
+        const grade = gradesData.find(g => g.id === student.grade_id);
+        // Find section name from sectionsData using section_id
+        const section = sectionsData.find(s => s.id === student.section_id);
+        
+        return {
+          ...student,
+          // Use related table names if available, otherwise fall back to direct fields
+          grade: grade ? grade.grade_level : student.grade || 'N/A',
+          section: section ? section.section_name : student.section || 'N/A',
+          // Keep original IDs
+          grade_id: student.grade_id,
+          section_id: student.section_id
+        };
+      });
+      
+      setAllStudents(transformedStudents);
+      console.log('✅ All students loaded:', transformedStudents.length);
     } catch (err) {
       console.error('❌ Error loading all students:', err);
       toastError('Failed to load student data');
     }
-  }, [toastError]);
+  }, [toastError, gradesData, sectionsData]);
 
+  // Fetch initial data
   useEffect(() => {
-    fetchAllStudents();
-  }, [fetchAllStudents]);
+    const fetchInitialData = async () => {
+      setLoadingData(true);
+      try {
+        await Promise.all([
+          fetchGrades(),
+          fetchSections()
+        ]);
+      } catch (err) {
+        console.error('Error fetching initial data:', err);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    
+    fetchInitialData();
+  }, [fetchGrades, fetchSections]);
+
+  // Fetch students after grades and sections are loaded
+  useEffect(() => {
+    if (!loadingData && gradesData.length > 0) {
+      fetchAllStudents();
+    }
+  }, [loadingData, fetchAllStudents]);
 
   const refreshStudents = useCallback(() => {
     console.log('🔄 Refreshing student data...');
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // Handle file upload success
   const handleUploadSuccess = useCallback((newStudents) => {
     console.log('🆕 Students uploaded, refreshing all data...', newStudents);
     fetchAllStudents();
@@ -91,13 +173,15 @@ function AdminStudents() {
     setCurrentGrade(grade);
   };
 
-  const handleDeleteSelected = (count, description) => {
-    setDeleteModalMode('bulk');
-    setIsDeleteModalOpen(true);
+  const handleBulkDeleteClick = () => {
+    if (selectedStudents.length > 0) {
+      setDeleteModalMode('bulk');
+      setIsDeleteModalOpen(true);
+    }
   };
 
-  const handleDownloadQR = (count, description) => {
-    if (count > 0) {
+  const handleBulkQRClick = () => {
+    if (selectedStudents.length > 0) {
       setIsQRModalOpen(true);
     }
   };
@@ -147,7 +231,6 @@ function AdminStudents() {
         success(`${studentIdOrIds.length} students deleted successfully`);
       }
       
-      // Refresh data first
       await fetchAllStudents();
       setRefreshTrigger(prev => prev + 1);
       
@@ -161,7 +244,6 @@ function AdminStudents() {
       setIsDeleteModalOpen(false);
       setStudentToDelete(null);
       
-      // Clear selected students in the next tick after modal closes
       if (deleteModalMode === 'bulk') {
         requestAnimationFrame(() => {
           setSelectedStudents([]);
@@ -174,56 +256,86 @@ function AdminStudents() {
     <main className={styles.main}>
       <PageLabel icon={<FontAwesomeIcon icon={faUsers} />} label="Students"></PageLabel>
       <SectionLabel label="Student Records"></SectionLabel>
+      
       <div className={styles.top}>
         <div className={styles.searchAndFilter}>
           <Input 
-            placeholder="Search by name, LRN, email, phone..." 
+            placeholder="Search Student Records" 
             value={searchTerm}
             onChange={handleSearchChange}
+            search="true"
           />
-          <DropDownButton 
-            options={availableSections}
-            placeholder="Filter by section"
-            selectedValue={selectedSection}
-            onSelect={handleSectionSelect}
-          />
-          <ActionsDropdownButton 
-            selectedCount={selectedStudents.length}
-            currentFilter={searchTerm}
-            currentSection={selectedSection}
-            currentGrade={currentGrade}
-            onDeleteSelected={handleDeleteSelected}
-            onDownloadQR={handleDownloadQR}
+          
+          {selectedStudents.length > 0 && (
+            <div className={styles.bulkActions}>
+              <Button
+                color="primary"
+                height="sm"
+                width="auto"
+                icon={<FontAwesomeIcon icon={faQrcode} />}
+                onClick={handleBulkQRClick}
+                style={{ marginRight: '10px' }}
+                disabled={loadingData}
+              />
+              <Button
+                color="danger"
+                height="sm"
+                width="auto"
+                icon={<FontAwesomeIcon icon={faTrash} />}
+                onClick={handleBulkDeleteClick}
+                disabled={isDeleting || loadingData}
+              />
+            </div>
+          )}
+        </div>
+        
+        <div className={styles.addButtons}>
+          <Button 
+            color="success" 
+            height="sm" 
+            width="md" 
+            label="Add Students" 
+            onClick={() => setIsUploadModalOpen(true)}
+            style={{ marginRight: '10px' }}
+            disabled={loadingData}
           />
         </div>
-        <Button color="success" height="sm" width="xs" label="Create" onClick={() => {setIsOpen(true);}}></Button>
       </div>
       
-      <FileUploadModal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        entityType="student"
-        onUploadSuccess={(newStudents) => {
-          // Handle new students
-          refreshStudents();
-        }}
-      />
+      {loadingData ? (
+        <div className={styles.loadingContainer}>
+          <p>Loading student data...</p>
+        </div>
+      ) : (
+        <>
+          <FileUploadModal
+            isOpen={isUploadModalOpen}
+            onClose={() => setIsUploadModalOpen(false)}
+            entityType="student"
+            onUploadSuccess={handleUploadSuccess}
+          />
+          
+          <StudentTable 
+            key={`student-table-${refreshTrigger}`}
+            searchTerm={searchTerm} 
+            selectedSection={selectedSection}
+            onSectionsUpdate={handleSectionsUpdate}
+            onSelectedStudentsUpdate={handleSelectedStudentsUpdate}
+            onStudentDataUpdate={handleStudentDataUpdate}
+            onGradeUpdate={handleGradeUpdate}
+            onClearSectionFilter={handleClearSectionFilter}
+            onSingleDeleteClick={handleSingleDeleteClick}
+            refreshStudents={refreshStudents}
+            refreshAllStudents={fetchAllStudents}
+            onSectionSelect={handleSectionSelect}
+            availableSections={availableSections}
+            gradesData={gradesData} // Pass grades data to StudentTable if needed
+            sectionsData={sectionsData} // Pass sections data to StudentTable if needed
+          />
+        </>
+      )}
       
-        <StudentTable 
-          key={`student-table-${refreshTrigger}`}
-          searchTerm={searchTerm} 
-          selectedSection={selectedSection}
-          onSectionsUpdate={handleSectionsUpdate}
-          onSelectedStudentsUpdate={handleSelectedStudentsUpdate}
-          onStudentDataUpdate={handleStudentDataUpdate}
-          onGradeUpdate={handleGradeUpdate}
-          onClearSectionFilter={handleClearSectionFilter}
-          onSingleDeleteClick={handleSingleDeleteClick}
-          refreshStudents={refreshStudents}
-          refreshAllStudents={fetchAllStudents}
-        />
-      
-      <DeleteStudentModal
+      <DeleteEntityModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
           if (!isDeleting) {
@@ -231,9 +343,10 @@ function AdminStudents() {
             setStudentToDelete(null);
           }
         }}
-        student={deleteModalMode === 'single' ? studentToDelete : null}
-        selectedStudents={deleteModalMode === 'bulk' ? selectedStudents : []}
-        studentData={allStudents}
+        entity={deleteModalMode === 'single' ? studentToDelete : null}
+        selectedEntities={deleteModalMode === 'bulk' ? selectedStudents : []}
+        entityData={allStudents}
+        entityType="student"
         onConfirm={deleteModalMode === 'single' ? handleConfirmDelete : undefined}
         onConfirmBulk={deleteModalMode === 'bulk' ? handleConfirmDelete : undefined}
         currentFilter={searchTerm}
@@ -249,6 +362,8 @@ function AdminStudents() {
         currentFilter={searchTerm}
         currentSection={selectedSection}
         currentGrade={currentGrade}
+        gradesData={gradesData} // Pass grades data
+        sectionsData={sectionsData} // Pass sections data
       />
     </main>
   );

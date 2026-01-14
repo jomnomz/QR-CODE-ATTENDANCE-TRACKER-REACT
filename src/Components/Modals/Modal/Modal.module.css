@@ -42,6 +42,14 @@
   animation: scaleOut 0.2s ease-in forwards;
 }
 
+.modalContent {
+  height: 100% !important; /* Force full height */
+  max-height: 100% !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+  padding: 0 !important; /* Remove padding to maximize space */
+}
 /* Keyframes for background */
 @keyframes fadeIn {
   from {

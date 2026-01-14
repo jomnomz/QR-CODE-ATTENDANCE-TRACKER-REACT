@@ -1,0 +1,286 @@
+.teacherStudentView {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.searchContainer {
+  margin-bottom: 10px;
+}
+
+.classContainers {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+  align-items: center; /* Align buttons and info vertically */
+}
+
+.tableInfo {
+  margin-left: 20px; /* Space between buttons and info */
+  padding-bottom: 5px;
+}
+
+.tableInfo p {
+  margin: 0;
+  font-weight: bold;
+  color: #003a02;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.tableWrapper {
+  max-height: 59vh;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  width:98%;
+  flex: 1;
+}
+
+.tableWrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  table-layout: fixed;
+}
+
+.tableWrapper thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f2f2f2;
+  z-index: 10;
+  box-shadow: 0 1px 0 #e0e0e0;
+}
+
+.studentsTable th {
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  color: #333;
+  border-bottom: 2px solid #ddd;
+}
+
+.studentsTable td {
+  padding: 10px 12px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reportButtonContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+
+.reportButton {
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  font-size: 30px;
+  color: #6C757D;
+  transition: all 0.2s;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.reportButton:hover {
+  color: #49f3ff;
+  background-color: rgba(73, 243, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.rowEven {
+  background-color: white !important;
+}
+
+.rowOdd {
+  background-color: #f2f2f2 !important;
+}
+
+.studentRow:hover {
+  background-color: #8a8a8a !important;
+  cursor: pointer;
+}
+
+.studentRow:hover td {
+  color: white;
+}
+
+.studentRow:hover .reportButton {
+  color: white;
+}
+
+.loading, .error, .noStudents {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+  color: #666;
+}
+
+.error {
+  color: #dc3545;
+  background-color: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 4px;
+}
+
+.noStudents {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 40px;
+}
+
+.expandRow {
+  height: 0;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.expandRowActive {
+  height: auto;
+  max-height: 500px;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.expandRow td {
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.studentCard {
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  text-align: left;
+  padding: 20px;
+  cursor: default;
+}
+
+.expandableCard {
+  max-height: 0;
+  padding: 0 20px;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  transform: scaleY(0.8);
+  transform-origin: top;
+}
+
+.expandRowActive .expandableCard {
+  max-height: 500px;
+  padding: 20px;
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.details {
+  display: flex;
+  flex-direction: row;
+  gap: 50px;
+}
+
+.studentHeader {
+  font-weight: bold;
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+.studentInfo {
+  font-size: 15px;
+  margin: 4px 0;
+}
+
+.hiddenRow {
+  display: none;
+}
+
+/* Column widths matching admin table proportions */
+.tableWrapper table th:nth-child(1),
+.tableWrapper table td:nth-child(1) {
+  width: 20%;
+  min-width: 150px;
+}
+
+.tableWrapper table th:nth-child(2),
+.tableWrapper table td:nth-child(2) {
+  width: 30%;
+  min-width: 200px;
+}
+
+.tableWrapper table th:nth-child(3),
+.tableWrapper table td:nth-child(3) {
+  width: 15%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(4),
+.tableWrapper table td:nth-child(4) {
+  width: 25%;
+  min-width: 180px;
+}
+
+.tableWrapper table th:nth-child(5),
+.tableWrapper table td:nth-child(5) {
+  width: 10%;
+  min-width: 70px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .details {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .tableWrapper {
+    overflow-x: auto;
+  }
+  
+  .tableWrapper table {
+    min-width: 800px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .classContainers {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .tableInfo {
+    margin-left: 0;
+    margin-top: 10px;
+    align-self: flex-start;
+  }
+  
+  .tableInfo p {
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+@media (max-width: 768px) {
+  .tableInfo p {
+    font-size: 14px;
+  }
+}

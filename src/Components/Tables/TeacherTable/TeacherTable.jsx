@@ -1,31 +1,57 @@
- import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useTeachers } from '../../Hooks/useEntities'; 
 import { useEntityEdit } from '../../Hooks/useEntityEdit'; 
 import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
-import { useTeacherActions } from '../../Hooks/useEntityActions'; 
 import { TeacherService } from '../../../Utils/EntityService'; 
 import { sortTeachers } from '../../../Utils/SortEntities'; 
 import { formatTeacherName, formatDateTime, formatNA } from '../../../Utils/Formatters';
-import Button from '../../UI/Buttons/Button/Button';
-import InviteModal from '../../Modals/InviteModal/InviteModal';
 import styles from './TeacherTable.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircle as farCircle } from "@fortawesome/free-regular-svg-icons";
-import { faPenToSquare, faTrashCan, faCircle as fasCircle, faEnvelope, faList } from "@fortawesome/free-solid-svg-icons";
+import { faPenToSquare, faTrashCan, faCircle as fasCircle, faEnvelope, faList, faBook, faUsers, faUserTie } from "@fortawesome/free-solid-svg-icons";
+import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
 import { useToast } from '../../Toast/ToastContext/ToastContext';
 import { useAuth } from '../../Authentication/AuthProvider/AuthProvider';
 
-console.log('🔄 TeacherTable.jsx LOADED - Version with /api/teacher-invite URLs');
+console.log('🔄 TeacherTable.jsx LOADED - Updated with consistent expanded row');
+
+const formatDateTimeLocal = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  } catch (error) {
+    console.error('Error formatting date:', dateString, error);
+    return 'N/A';
+  }
+};
 
 const TeacherTable = ({ 
   searchTerm = '', 
   onSelectedTeachersUpdate,
   onTeacherDataUpdate,
   onSingleDeleteClick,
+  onSingleInviteClick,
   refreshTeachers
 }) => {
     
   const { entities: teachers, loading, error, setEntities } = useTeachers();
+  const [teacherAssignments, setTeacherAssignments] = useState({});
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
   
   const { editingId: editingTeacher, editFormData, saving, validationErrors, startEdit, cancelEdit, updateEditField, saveEdit } = useEntityEdit(
     teachers, 
@@ -35,18 +61,44 @@ const TeacherTable = ({
   );
   
   const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
-  const { 
-    handleDeleteClick 
-  } = useTeacherActions(setEntities);
 
-  const { success, error: toastError, info } = useToast();
+  const { success, error: toastError } = useToast();
   const { user, profile } = useAuth();
   const [selectedTeachers, setSelectedTeachers] = useState([]);
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [selectedTeacherForInvite, setSelectedTeacherForInvite] = useState(null);
-  const [sendingInvite, setSendingInvite] = useState(false);
 
   const teacherService = useMemo(() => new TeacherService(), []);
+
+  // Fetch teacher assignments when teachers are loaded
+  useEffect(() => {
+    if (teachers.length > 0) {
+      fetchTeacherAssignments();
+    }
+  }, [teachers]);
+
+  const fetchTeacherAssignments = async () => {
+    setLoadingAssignments(true);
+    try {
+      const assignments = {};
+      
+      for (const teacher of teachers) {
+        console.log(`📊 Fetching assignments for teacher ${teacher.id}: ${teacher.first_name} ${teacher.last_name}`);
+        const result = await teacherService.getTeacherAssignments(teacher.id);
+        
+        assignments[teacher.id] = {
+          subjects: result.subjects || [],
+          sections: result.sections || [],
+          teachingAssignments: result.assignments || []
+        };
+      }
+      
+      setTeacherAssignments(assignments);
+      console.log('📊 All teacher assignments loaded:', assignments);
+    } catch (error) {
+      console.error('Error fetching teacher assignments:', error);
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
 
   useEffect(() => {
     if (onTeacherDataUpdate) {
@@ -65,9 +117,13 @@ const TeacherTable = ({
       teacher.last_name?.toLowerCase().includes(searchLower) ||
       teacher.email_address?.toLowerCase().includes(searchLower) ||
       teacher.phone_no?.toLowerCase().includes(searchLower) ||
-      teacher.status?.toLowerCase().includes(searchLower)
+      teacher.status?.toLowerCase().includes(searchLower) ||
+      teacherAssignments[teacher.id]?.subjects?.some(subject => 
+        subject.subject?.subject_name?.toLowerCase().includes(searchLower) ||
+        subject.subject?.subject_code?.toLowerCase().includes(searchLower)
+      )
     );
-  }, [teachers, searchTerm]);
+  }, [teachers, searchTerm, teacherAssignments]);
 
   const sortedTeachers = useMemo(() => sortTeachers(filteredTeachers), [filteredTeachers]);
 
@@ -107,11 +163,6 @@ const TeacherTable = ({
     updateEditField(name, value);
   };
 
-  const handleSelectChange = (e) => {
-    const { name, value } = e.target;
-    updateEditField(name, value);
-  };
-
   const handleInputClick = (e) => {
     e.stopPropagation();
   };
@@ -121,7 +172,7 @@ const TeacherTable = ({
     
     const result = await saveEdit(
       teacherId, 
-      null, // No grade for teachers
+      null,
       (id, data) => teacherService.update(id, {
         ...data,
         updated_by: user?.id,
@@ -166,220 +217,168 @@ const TeacherTable = ({
   const allVisibleSelected = sortedTeachers.length > 0 && 
     sortedTeachers.every(teacher => selectedTeachers.includes(teacher.id));
 
-  // ==================== INVITATION FUNCTIONS ====================
-  const handleInviteClick = (teacher, e) => {
-    e.stopPropagation();
+  const getTeacherAssignments = (teacherId) => {
+    const assignments = teacherAssignments[teacherId] || {};
     
-    if (!teacher.email_address) {
-      toastError('Teacher does not have an email address');
-      return;
-    }
+    const subjects = assignments.subjects?.map(s => 
+      s.subject?.subject_name || s.subject?.subject_code || 'Unknown'
+    ).filter(name => name && name !== 'Unknown').join(', ') || 'None';
     
-    if (teacher.status === 'active') {
-      info('Teacher already has an active account');
-      return;
-    }
-    
-    if (teacher.status === 'pending') {
-      info('Teacher already has a pending invitation');
-      return;
-    }
-    
-    if (teacher.status === 'inactive') {
-      toastError('Teacher account is suspended');
-      return;
-    }
-    
-    setSelectedTeacherForInvite(teacher);
-    setInviteModalOpen(true);
-  };
-
-  const handleBulkInviteClick = () => {
-    if (visibleSelectedTeachers.length === 0) {
-      info('Please select at least one teacher to invite');
-      return;
-    }
-    
-    setInviteModalOpen(true);
-  };
-
-  const sendInvitation = async (teacherId) => {
-  setSendingInvite(true);
-  try {
-    const response = await fetch('http://localhost:5000/api/teacher-invite/invite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teacherId: teacherId, invitedBy: user?.id }),
-    });
-
-    const data = await response.json();
-    
-    if (data.success) {
-      // Update teacher status
-      setEntities(prev => prev.map(teacher => 
-        teacher.id === teacherId 
-          ? { ...teacher, status: 'pending' }
-          : teacher
-      ));
-      
-      // AUTO-OPEN EMAIL WITH TEMPLATE
-      if (data.emailTemplate) {
-        // Create a temporary HTML file and open it
-        const htmlContent = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Email to ${data.teacherName}</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              .container { max-width: 800px; margin: 0 auto; }
-              .header { background: #3B82F6; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-              .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
-              .actions { margin-top: 20px; display: flex; gap: 10px; }
-              button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-              .copy-btn { background: #3B82F6; color: white; }
-              .email-btn { background: #10b981; color: white; }
-              .close-btn { background: #6b7280; color: white; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h2>📧 Email for ${data.teacherName}</h2>
-                <p>Copy this email and send to the teacher</p>
-              </div>
-              <div class="content">
-                <h3>Subject: ${data.emailTemplate.subject}</h3>
-                <hr>
-                <div id="email-content">
-                  ${data.emailTemplate.html}
-                </div>
-                <hr>
-                <div class="actions">
-                  <button class="copy-btn" onclick="copyToClipboard()">📋 Copy Email HTML</button>
-                  <button class="email-btn" onclick="openEmailClient()">📨 Open Email Client</button>
-                  <button class="close-btn" onclick="window.close()">Close</button>
-                </div>
-              </div>
-            </div>
-            <script>
-              function copyToClipboard() {
-                const html = document.getElementById('email-content').innerHTML;
-                const subject = "${data.emailTemplate.subject}";
-                const text = "${data.emailTemplate.text.replace(/\n/g, '\\\\n')}";
-                
-                // Copy HTML version
-                navigator.clipboard.writeText(html)
-                  .then(() => alert('✅ Email HTML copied to clipboard!'));
-              }
-              
-              function openEmailClient() {
-                const subject = encodeURIComponent("${data.emailTemplate.subject}");
-                const body = encodeURIComponent(\`${data.emailTemplate.text}\`);
-                window.open('mailto:${data.email}?subject=' + subject + '&body=' + body);
-              }
-            </script>
-          </body>
-          </html>
-        `;
-        
-        // Open in new window
-        const win = window.open();
-        win.document.write(htmlContent);
-        win.document.close();
+    const teachingSections = assignments.teachingAssignments?.map(assignment => {
+      const section = assignments.sections?.find(s => s.section_id === assignment.section_id);
+      if (section && section.section) {
+        return `Grade ${section.section.grade?.grade_level || '?'}-${section.section.section_name || '?'}`;
       }
-      
-      // Also show simple alert with credentials
-      alert(
-        `✅ TEACHER ACCOUNT CREATED!\n\n` +
-        `Teacher: ${data.teacherName}\n` +
-        `Email: ${data.email}\n` +
-        `Password: ${data.tempPassword}\n` +
-        `Login: ${data.loginUrl}\n\n` +
-        `A new window opened with the email template.\n` +
-        `Copy it and send to the teacher.`
-      );
-      
-      success('Account created! Email template opened.');
-      return true;
-    } else {
-      toastError(data.error || 'Failed to create account');
-      return false;
-    }
-  } catch (err) {
-    toastError('Error: ' + err.message);
-    return false;
-  } finally {
-    setSendingInvite(false);
-  }
-};
+      return '';
+    }).filter(s => s).join(', ') || 'None';
+    
+    const adviserSection = assignments.sections?.find(s => s.is_adviser);
+    const adviserDisplay = adviserSection && adviserSection.section ? 
+      `Grade ${adviserSection.section.grade?.grade_level || '?'}-${adviserSection.section.section_name || '?'}` : 
+      'None';
+    
+    return { subjects, teachingSections, adviserDisplay };
+  };
 
-  const sendBulkInvitations = async (teacherIds) => {
-    setSendingInvite(true);
+  const handleDeactivateClick = async (teacher) => {
+    if (!window.confirm(`Deactivate ${teacher.first_name}'s account? They won't be able to login.`)) {
+      return;
+    }
+    
     try {
-      console.log('🔄 Sending bulk invitations for teacher IDs:', teacherIds);
-      console.log('📤 Making request to: /api/teacher-invite/invite/bulk');
-      
-      const response = await fetch('/api/teacher-invite/invite/bulk', {
+      const response = await fetch('http://localhost:5000/api/teacher-invite/deactivate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          teacherIds: teacherIds,
-          invitedBy: user?.id
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          teacherId: teacher.id, 
+          deactivatedBy: user?.id 
         }),
       });
 
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response ok:', response.ok);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const text = await response.text();
-      console.log('📥 Response text:', text);
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error('❌ Failed to parse JSON:', parseError);
-        throw new Error('Invalid JSON response from server');
-      }
-
-      console.log('📊 Parsed response data:', data);
-
+      const data = await response.json();
+      
       if (data.success) {
-        // Update local state for successful invitations
-        setEntities(prev => prev.map(teacher => 
-          teacherIds.includes(teacher.id) && data.results?.success?.some(r => r.teacherId === teacher.id)
-            ? { ...teacher, status: 'pending' }
-            : teacher
+        setEntities(prev => prev.map(t => 
+          t.id === teacher.id ? { ...t, status: 'inactive' } : t
         ));
         
-        success(`Sent ${data.results?.success?.length || 0} invitations successfully`);
-        
-        // Show failed invitations if any
-        if (data.results?.failed?.length > 0) {
-          info(`${data.results.failed.length} invitations failed`);
-        }
-        
-        return true;
+        success(`Account deactivated: ${teacher.first_name} ${teacher.last_name}`);
+        cancelEdit();
       } else {
-        toastError(data.error || 'Failed to send bulk invitations');
-        return false;
+        toastError(data.error || 'Failed to deactivate account');
       }
     } catch (err) {
-      console.error('❌ Error in sendBulkInvitations:', err);
-      toastError('Error sending bulk invitations: ' + err.message);
-      return false;
-    } finally {
-      setSendingInvite(false);
+      toastError('Error: ' + err.message);
     }
   };
-  // ==================== END INVITATION FUNCTIONS ====================
+
+  const handleResendInvitation = async (teacher) => {
+    if (!window.confirm(`Resend invitation to ${teacher.first_name}? Old account will be deleted and new invitation sent.`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/teacher-invite/resend-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          teacherId: teacher.id, 
+          invitedBy: user?.id 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setEntities(prev => prev.map(t => 
+          t.id === teacher.id ? { ...t, status: 'pending' } : t
+        ));
+        
+        success(`Invitation resent to: ${teacher.email_address}`);
+        
+        alert(
+          `✅ NEW INVITATION SENT!\n\n` +
+          `Teacher: ${data.teacherName}\n` +
+          `Email: ${data.email}\n` +
+          `New Password: ${data.tempPassword}\n` +
+          `Login: ${data.loginUrl}`
+        );
+        cancelEdit();
+      } else {
+        toastError(data.error || 'Failed to resend invitation');
+      }
+    } catch (err) {
+      toastError('Error: ' + err.message);
+    }
+  };
+
+  const handleReactivateClick = async (teacher) => {
+    if (!window.confirm(`Reactivate ${teacher.first_name}'s account? They will be able to login again.`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/teacher-invite/reactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          teacherId: teacher.id, 
+          reactivatedBy: user?.id 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setEntities(prev => prev.map(t => 
+          t.id === teacher.id ? { ...t, status: 'active' } : t
+        ));
+        
+        success(`Account reactivated: ${teacher.first_name} ${teacher.last_name}`);
+        cancelEdit();
+      } else {
+        toastError(data.error || 'Failed to reactivate account');
+      }
+    } catch (err) {
+      toastError('Error: ' + err.message);
+    }
+  };
+
+  const handleInviteClick = (teacher, e) => {
+    e.stopPropagation();
+    
+    if (onSingleInviteClick) {
+      onSingleInviteClick(teacher);
+    } else {
+      if (!teacher.email_address) {
+        toastError('Teacher does not have an email address');
+        return;
+      }
+      
+      if (teacher.status === 'active') {
+        toastError('Teacher already has an active account');
+        return;
+      }
+      
+      if (teacher.status === 'pending') {
+        toastError('Teacher already has a pending invitation');
+        return;
+      }
+      
+      if (teacher.status === 'inactive') {
+        toastError('Teacher account is suspended');
+        return;
+      }
+    }
+  };
+
+  const handleDeleteClick = (teacher, e) => {
+    if (e) e.stopPropagation();
+    
+    if (onSingleDeleteClick) {
+      onSingleDeleteClick(teacher);
+    }
+  };
 
   const renderEditInput = (fieldName, type = 'text') => (
     <input
@@ -392,31 +391,68 @@ const TeacherTable = ({
     />
   );
 
-  const renderStatusSelect = (fieldName = 'status') => (
-    <select
-      name={fieldName}
-      value={editFormData[fieldName] || ''}
-      onChange={handleSelectChange}
-      onClick={handleInputClick}
-      className={`${styles.statusSelect} ${styles.editInput} ${validationErrors[fieldName] ? styles.errorInput : ''} edit-input`}
-    >
-      <option value="">No Status</option>
-      <option value="pending">Pending</option>
-      <option value="active">Active</option>
-      <option value="inactive">Inactive</option>
-    </select>
-  );
-
-  const renderField = (teacher, fieldName, isEditable = true) => {
-    if (editingTeacher === teacher.id && isEditable) {
-      if (fieldName === 'status') {
-        return renderStatusSelect(fieldName);
-      }
-      return renderEditInput(fieldName, fieldName === 'email_address' ? 'email' : 'text');
+  const renderStatusField = (teacher) => {
+    if (editingTeacher !== teacher.id) {
+      return renderStatusBadge(teacher.status);
     }
     
+    const currentStatus = editFormData.status || teacher.status;
+    
+    if (currentStatus === 'active') {
+      return (
+        <button 
+          className={styles.deactivateButton}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeactivateClick(teacher);
+          }}
+          title="Deactivate account"
+        >
+          Deactivate
+        </button>
+      );
+    }
+    
+    if (currentStatus === 'pending') {
+      return (
+        <button 
+          className={styles.resendButton}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleResendInvitation(teacher);
+          }}
+          title="Resend invitation"
+        >
+          Resend
+        </button>
+      );
+    }
+    
+    if (currentStatus === 'inactive') {
+      return (
+        <button 
+          className={styles.reactivateButton}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleReactivateClick(teacher);
+          }}
+          title="Reactivate account"
+        >
+          Reactivate
+        </button>
+      );
+    }
+    
+    return renderStatusBadge(currentStatus);
+  };
+
+  const renderField = (teacher, fieldName, isEditable = true) => {
     if (fieldName === 'status') {
-      return renderStatusBadge(teacher.status);
+      return renderStatusField(teacher);
+    }
+    
+    if (editingTeacher === teacher.id && isEditable) {
+      return renderEditInput(fieldName, fieldName === 'email_address' ? 'email' : 'text');
     }
     
     return fieldName === 'email_address' || fieldName === 'phone_no'
@@ -436,7 +472,8 @@ const TeacherTable = ({
     const statusConfig = {
       'pending': { color: '#f59e0b', label: 'Pending' },
       'active': { color: '#10b981', label: 'Active' },
-      'inactive': { color: '#ef4444', label: 'Inactive' }
+      'inactive': { color: '#ef4444', label: 'Inactive' },
+      'invited': { color: '#8b5cf6', label: 'Invited' }
     };
     
     const config = statusConfig[status.toLowerCase()] || { color: '#6c757d', label: status };
@@ -489,9 +526,9 @@ const TeacherTable = ({
   );
 
   const renderExpandedRow = (teacher) => {
-    const addedAt = formatDateTime(teacher.created_at);
-    const updatedAt = teacher.updated_at ? formatDateTime(teacher.updated_at) : 'Never updated';
-    const invitedAt = teacher.invited_at ? formatDateTime(teacher.invited_at) : 'Not invited';
+    const addedAt = formatDateTimeLocal(teacher.created_at);
+    const updatedAt = teacher.updated_at ? formatDateTimeLocal(teacher.updated_at) : 'Never updated';
+    const invitedAt = teacher.invited_at ? formatDateTimeLocal(teacher.invited_at) : 'Not invited';
     
     const getCurrentUserName = () => {
       if (!user) return 'N/A';
@@ -515,53 +552,76 @@ const TeacherTable = ({
         )
       : 'Not yet updated';
 
+    const assignments = getTeacherAssignments(teacher.id);
+
+    // Format status for plain text display
+    const formatStatusText = (status) => {
+      if (!status) return 'No Status';
+      const statusMap = {
+        'pending': 'Pending',
+        'active': 'Active',
+        'inactive': 'Inactive',
+        'invited': 'Invited'
+      };
+      return statusMap[status.toLowerCase()] || status.charAt(0).toUpperCase() + status.slice(1);
+    };
+
     return (
       <tr className={`${styles.expandRow} ${isRowExpanded(teacher.id) ? styles.expandRowActive : ''}`}>
-        <td colSpan="12">
+        <td colSpan="11">
           <div 
-            className={`${styles.teacherCard} ${styles.expandableCard}`}
+            className={`${styles.studentCard} ${styles.expandableCard}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className={styles.teacherHeader}>
+            <div className={styles.studentHeader}>
               {formatTeacherName(teacher)}
             </div>
-            
-            <div className={styles.teacherInfo}>
-              <strong>Teacher Details</strong>
-            </div>
-            <div className={styles.teacherInfo}>Employee ID: {teacher.employee_id}</div>
-            <div className={styles.teacherInfo}>Full Name: {teacher.first_name} {teacher.middle_name} {teacher.last_name}</div>
-            <div className={styles.teacherInfo}>Email: {formatNA(teacher.email_address)}</div>
-            <div className={styles.teacherInfo}>Phone: {formatNA(teacher.phone_no)}</div>
-            <div className={styles.teacherInfo}>
-              Status: {renderStatusBadge(teacher.status)}
-            </div>
-            
-            <div className={styles.teacherInfo}>
-              <strong>Account Information</strong>
-            </div>
-            {teacher.status === 'pending' && (
-              <div className={styles.teacherInfo}>
-                Invitation Sent: {invitedAt}
+          
+            <div className={styles.details}>
+              <div>
+                <div className={styles.studentInfo}>
+                  <strong>Teacher Details</strong>
+                </div>
+                <div className={styles.studentInfo}>Employee ID: {teacher.employee_id}</div>
+                <div className={styles.studentInfo}>Full Name: {formatTeacherName(teacher)}</div>
+                <div className={styles.studentInfo}>Email: {formatNA(teacher.email_address)}</div>
+                <div className={styles.studentInfo}>Phone: {formatNA(teacher.phone_no)}</div>
+                <div className={styles.studentInfo}>Status: {formatStatusText(teacher.status)}</div>
               </div>
-            )}
-            
-            <div className={styles.teacherInfo}>
-              <strong>Record Information</strong>
-            </div>
-            <div className={styles.teacherInfo}>
-              Added: {addedAt}
-            </div>
-            <div className={styles.teacherInfo}>
-              Last Updated: {updatedAt}
-            </div>
-            <div className={styles.teacherInfo}>
-              Last Updated By: {updatedByName}
-              {teacher.updated_by && teacher.updated_by_user && (
-                <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '8px' }}>
-                  ({teacher.updated_by_user.username || teacher.updated_by_user.email})
-                </span>
-              )}
+
+              <div>
+                <div className={styles.studentInfo}>
+                  <strong>Teaching Assignments</strong>
+                </div>
+                <div className={styles.studentInfo}>Subjects: {assignments.subjects}</div>
+                <div className={styles.studentInfo}>Teaching Sections: {assignments.teachingSections}</div>
+                <div className={styles.studentInfo}>Adviser Section: {assignments.adviserDisplay}</div>
+              </div>
+          
+              <div>
+                <div className={styles.studentInfo}>
+                  <strong>Record Information</strong>
+                </div>
+                {teacher.status === 'pending' && (
+                  <div className={styles.studentInfo}>
+                    Invitation Sent: {invitedAt}
+                  </div>
+                )}
+                <div className={styles.studentInfo}>
+                  Added: {addedAt}
+                </div>
+                <div className={styles.studentInfo}>
+                  Last Updated: {updatedAt}
+                </div>
+                <div className={styles.studentInfo}>
+                  Last Updated By: {updatedByName}
+                  {teacher.updated_by && teacher.updated_by_user && (
+                    <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '8px' }}>
+                      ({teacher.updated_by_user.username || teacher.updated_by_user.email})
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </td>
@@ -569,10 +629,10 @@ const TeacherTable = ({
     );
   };
 
-  if (loading) {
+  if (loading || loadingAssignments) {
     return (
       <div className={styles.teacherTableContainer}>
-        <div className={styles.loading}>Loading teachers...</div>
+        <div className={styles.loading}>Loading teachers and assignments...</div>
       </div>
     );
   }
@@ -587,21 +647,6 @@ const TeacherTable = ({
 
   return (
     <div className={styles.teacherTableContainer} ref={tableRef}>
-      {/* Bulk Action Buttons */}
-      <div className={styles.actionButtons}>
-        {visibleSelectedTeachers.length > 0 && (
-          <Button
-            label={`Invite ${visibleSelectedTeachers.length} Selected`}
-            color="primary"
-            onClick={handleBulkInviteClick}
-            icon={<FontAwesomeIcon icon={faEnvelope} />} 
-            width="auto"
-            height="sm"
-            disabled={sendingInvite}
-          />
-        )}
-      </div>
-
       <div className={styles.teachersTable}>
         <div className={styles.tableWrapper}>
           <table className={styles.teachersTable}>
@@ -626,7 +671,6 @@ const TeacherTable = ({
                 <th>PHONE NO.</th>
                 <th>STATUS</th>
                 <th>INVITE</th>
-                <th>CLASS LIST</th>
                 <th>EDIT</th>
                 <th>DELETE</th>
               </tr>
@@ -634,7 +678,7 @@ const TeacherTable = ({
             <tbody>
               {sortedTeachers.length === 0 ? (
                 <tr>
-                  <td colSpan="12" className={styles.noTeachers}>
+                  <td colSpan="11" className={styles.noTeachers}>
                     {searchTerm 
                       ? `No teachers found matching "${searchTerm}"`
                       : 'No teachers found'
@@ -679,11 +723,10 @@ const TeacherTable = ({
                           <td>{renderField(teacher, 'last_name')}</td>
                           <td>{renderField(teacher, 'email_address')}</td>
                           <td>{renderField(teacher, 'phone_no')}</td>
-                          <td>{renderField(teacher, 'status')}</td>
+                          <td>{renderField(teacher, 'status', false)}</td>
                           <td>
                             <div className={styles.icon}>
-                              <FontAwesomeIcon 
-                                icon={faEnvelope} 
+                              <ForwardToInboxIcon sx={{ fontSize: 37, mb: -0.7 }}
                                 className="action-button"
                                 style={{ 
                                   cursor: isInviteDisabled ? 'default' : 'pointer',
@@ -702,34 +745,13 @@ const TeacherTable = ({
                               />
                             </div>
                           </td>
-                          <td>
-                            <div className={styles.icon}>
-                              <FontAwesomeIcon 
-                                icon={faList} 
-                                className="action-button"
-                                style={{ cursor: 'pointer' }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Add your class list functionality here
-                                  console.log('View class list for:', teacher.id);
-                                }}
-                              />
-                            </div>
-                          </td>
                           <td>{renderEditCell(teacher)}</td>
                           <td>
                             <div className={styles.icon}>
                               <FontAwesomeIcon 
                                 icon={faTrashCan} 
                                 className="action-button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (onSingleDeleteClick) {
-                                    onSingleDeleteClick(teacher);
-                                  } else {
-                                    handleDeleteClick(teacher);
-                                  }
-                                }}
+                                onClick={(e) => handleDeleteClick(teacher, e)}
                               />
                             </div>
                           </td>
@@ -744,21 +766,6 @@ const TeacherTable = ({
           </table>
         </div>
       </div>
-
-      {/* Invite Modal */}
-      <InviteModal
-        isOpen={inviteModalOpen}
-        onClose={() => {
-          setInviteModalOpen(false);
-          setSelectedTeacherForInvite(null);
-        }}
-        teacher={selectedTeacherForInvite}
-        selectedTeachers={visibleSelectedTeachers}
-        teacherData={teachers}
-        onConfirm={sendInvitation}
-        onConfirmBulk={sendBulkInvitations}
-        loading={sendingInvite}
-      />
     </div>
   );
 };

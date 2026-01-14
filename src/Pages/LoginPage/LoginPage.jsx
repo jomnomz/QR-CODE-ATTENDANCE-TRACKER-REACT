@@ -10,15 +10,29 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Only redirect if user is logged in AND account is active
-    if (!loading && user && profile && profile.status === "active") {
-      if (profile.role === "admin") {
-        navigate("/admin/dashboard");
-      } else if (profile.role === "teacher") {
-        navigate("/teacher/dashboard");
-      }
+    if (!loading && user && profile) {
+      const timer = setTimeout(() => {
+        if (profile.role === "admin") {
+          navigate("/admin/dashboard");
+        } else if (profile.role === "teacher") {
+          navigate("/teacher/dashboard");
+        } else {
+          navigate("/");
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
   }, [loading, user, profile, navigate]);
+
+  if (loading || (user && profile)) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner}></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div

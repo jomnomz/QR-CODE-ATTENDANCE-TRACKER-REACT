@@ -20,7 +20,6 @@ function InviteModal({
 }) {
   const { success, error, info } = useToast();
   const [loading, setLoading] = useState(false);
-  const [customMessage, setCustomMessage] = useState('');
   
   const isBulkInvite = selectedTeachers.length > 0;
   const inviteCount = isBulkInvite ? selectedTeachers.length : 1;
@@ -85,19 +84,25 @@ function InviteModal({
     <Modal size="md" isOpen={isOpen} onClose={onClose}>
       <div className={styles.modalContainer}>
         <TitleModalLabel>
-          {isBulkInvite ? `Send Invitations to ${inviteCount} Teachers` : 'Send Invitation'}
+          {isBulkInvite ? `Send Invitations to ${eligibleTeachers.length} Teachers` : 'Send Invitation'}
         </TitleModalLabel>
         
         <MessageModalLabel>
           {isBulkInvite ? (
-            `You are about to send account invitations to ${eligibleTeachers.length} teacher${eligibleTeachers.length !== 1 ? 's' : ''}.`
+            `Are you sure you want to send account invitations to ${eligibleTeachers.length} teacher${eligibleTeachers.length !== 1 ? 's' : ''}.`
           ) : (
-            'You are about to send an account invitation to this teacher:'
+            'Are you sure you want to send an account invitation to this teacher:'
           )}
         </MessageModalLabel>
         
         {isBulkInvite ? (
           <>
+            {ineligibleCount > 0 && (
+              <InfoBox type="important">
+                <strong>Important:</strong> {ineligibleCount} teacher{ineligibleCount !== 1 ? 's' : ''} will not receive invitations because they already have accounts or are not eligible.
+              </InfoBox>
+            )}
+
             {eligibleTeachers.length > 0 && (
               <EntityList 
                 entities={eligibleTeachers}
@@ -105,12 +110,6 @@ function InviteModal({
                 title="Teachers who will receive invitations"
                 entityType="teacher"
               />
-            )}
-            
-            {ineligibleCount > 0 && (
-              <InfoBox type="info">
-                <strong>Note:</strong> {ineligibleCount} teacher{ineligibleCount !== 1 ? 's' : ''} will not receive invitations because they already have accounts or are not eligible.
-              </InfoBox>
             )}
           </>
         ) : (
@@ -122,24 +121,8 @@ function InviteModal({
           />
         )}
 
-        <div className={styles.messageSection}>
-          <label htmlFor="message">Custom Message (Optional):</label>
-          <textarea
-            id="message"
-            value={customMessage}
-            onChange={(e) => setCustomMessage(e.target.value)}
-            placeholder="You can add a personalized message here. The default invitation email will include the necessary setup instructions."
-            rows={6}
-            className={styles.messageInput}
-            disabled={loading}
-          />
-          <p className={styles.messageHint}>
-            Leave blank to use the default invitation message
-          </p>
-        </div>
-
         <InfoBox type="note">
-          <strong>Note:</strong> Teachers will receive an email with a link to create their account. Once they create an account, their status will automatically change to "Active".
+          <strong>Note:</strong> Teachers will receive an email with their account email and password. Once they accept the invite, their status will automatically change to "Active" and can now login.
         </InfoBox>
 
         <div className={styles.buttonGroup}>

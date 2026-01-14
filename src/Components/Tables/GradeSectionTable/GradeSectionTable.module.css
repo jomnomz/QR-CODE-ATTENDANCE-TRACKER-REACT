@@ -1,0 +1,377 @@
+.gradeSectionTableContainer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableWrapper {
+  max-height: 59vh;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  width: 98%;
+}
+
+.tableWrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  table-layout: auto;
+}
+
+.tableWrapper thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f2f2f2;
+  z-index: 10;
+  box-shadow: 0 1px 0 #e0e0e0;
+}
+
+th {
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+}
+
+td, th {
+  text-align: center;
+  padding: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+tbody tr {
+  margin: 0;
+  padding: 0;
+  border-spacing: 0;
+}
+
+.rowEven {
+  background-color: white !important;
+}
+
+.rowOdd {
+  background-color: #f2f2f2 !important;
+}
+
+.gradeSectionRow:hover {
+  background-color: #8a8a8a !important;
+  cursor: pointer;
+}
+
+.gradeSectionRow:hover td {
+  color: white;
+}
+
+.gradeSectionCard {
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  text-align: left;
+  padding: 20px;
+  cursor: default;
+}
+
+.expandableCard {
+  max-height: 0;
+  padding: 0 20px;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  transform: scaleY(0.8);
+  transform-origin: top;
+}
+
+.expandRowActive .expandableCard {
+  max-height: 500px;
+  padding: 20px;
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.details {
+  display: flex;
+  flex-direction: row;
+  gap: 50px; 
+}
+
+.expandRow {
+  height: 0;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.expandRowActive {
+  height: auto;
+  max-height: 500px;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.expandRow td {
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.gradeSectionHeader {
+  font-weight: bold;
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+.gradeSectionInfo {
+  font-size: 15px;
+  margin: 4px 0;
+}
+
+.loading, .error, .noGradeSection {
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+}
+
+.error {
+  color: #d32f2f;
+  background-color: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 4px;
+}
+
+.noGradeSection {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 40px;
+}
+
+.tableInfo {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  margin-bottom: 5px;
+}
+
+.tableInfo p {
+  margin: 0;
+  font-weight: bold;
+  color: #003a02;
+} 
+
+.icon {
+  font-size: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon svg {
+  transition: color 0.2s;
+  color: #6C757D;
+}
+
+.icon svg:hover {
+  color: white;
+}
+
+.editInput, .editSelect {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: text;
+  height: 35px;
+}
+
+.editInput:focus, .editSelect:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.editSelect {
+  background-color: white;
+  cursor: pointer;
+}
+
+.editCell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.editActions {
+  display: flex;
+  gap: 8px;
+}
+
+.saveBtn, .cancelBtn {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.saveBtn {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.saveBtn:hover:not(:disabled) {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.cancelBtn {
+  background-color: #6c757d;
+  color: white;
+  border-color: #6c757d;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+
+.saveBtn:disabled, .cancelBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.icon button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.gradeSectionRow {
+  cursor: pointer;
+}
+
+.editingRow {
+  cursor: default !important;
+}
+
+.editingRow:hover {
+  background-color: inherit;
+}
+
+.expandRow {
+  cursor: default;
+}
+
+.expandRow:hover {
+  background-color: inherit;
+}
+
+.selectedRow {
+  background-color: #e3f2fd !important;
+}
+
+.selectedRow:hover {
+  background-color: #bbdefb !important;
+}
+
+.errorRow {
+  background-color: #ffebee !important;
+}
+
+.errorMessages {
+  padding: 10px !important;
+  border-bottom: 2px solid #f44336;
+}
+
+.errorMessage {
+  color: #f44336;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.errorMessage:last-child {
+  margin-bottom: 0;
+}
+
+.errorInput {
+  border-color: #f44336 !important;
+  background-color: #ffebee;
+}
+
+/* Column widths using percentages */
+.tableWrapper table th:nth-child(1),
+.tableWrapper table td:nth-child(1) {
+  width: 5%;
+  min-width: 40px;
+}
+
+.tableWrapper table th:nth-child(2),
+.tableWrapper table td:nth-child(2) {
+  width: 15%;
+  min-width: 100px;
+}
+
+.tableWrapper table th:nth-child(3),
+.tableWrapper table td:nth-child(3) {
+  width: 35%;
+  min-width: 150px;
+}
+
+.tableWrapper table th:nth-child(4),
+.tableWrapper table td:nth-child(4) {
+  width: 10%;
+  min-width: 80px;
+}
+
+.tableWrapper table th:nth-child(5),
+.tableWrapper table td:nth-child(5) {
+  width: 10%;
+  min-width: 70px;
+}
+
+.tableWrapper table th:nth-child(6),
+.tableWrapper table td:nth-child(6) {
+  width: 10%;
+  min-width: 70px;
+}
+
+.action-button {
+  cursor: pointer;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .details {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Allow horizontal scroll only on mobile */
+  .gradeSectionTableContainer {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .tableWrapper table th:nth-child(3),
+  .tableWrapper table td:nth-child(3) {
+    width: 30%;
+    min-width: 120px;
+  }
+  
+  .tableWrapper table th:nth-child(2),
+  .tableWrapper table td:nth-child(2) {
+    width: 12%;
+    min-width: 80px;
+  }
+}

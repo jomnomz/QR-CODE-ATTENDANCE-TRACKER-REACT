@@ -90,15 +90,6 @@
   border-radius: 4px;
 }
 
-.note {
-    color: #d9534f;
-    font-size: 0.9em;
-    margin-top: 8px;
-    padding: 8px;
-    background-color: #f8f9fa;
-    border-left: 3px solid #d9534f;
-}
-
 .templateLink {
     margin-top: 10px;
     font-size: 0.9em;
@@ -117,7 +108,6 @@
 }
 
 .fileInfo {
-    margin: 15px 0;
     padding: 10px;
     background-color: #f8f9fa;
     border-radius: 5px;

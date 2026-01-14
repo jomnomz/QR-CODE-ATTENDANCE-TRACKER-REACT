@@ -6,23 +6,36 @@ import SectionLabel from "../../../Components/UI/Labels/SectionLabel/SectionLabe
 import Input from '../../../Components/UI/Input/Input.jsx';
 import Button from '../../../Components/UI/Buttons/Button/Button.jsx';
 import FileUploadModal from '../../../Components/Modals/FileUploadModal/FileUploadModal.jsx';
-import DeleteTeacherModal from '../../../Components/Modals/DeleteTeacherModal/DeleteTeacherModal.jsx';
+import DeleteEntityModal from '../../../Components/Modals/DeleteEntityModal/DeleteEntityModal.jsx';
+import InviteModal from '../../../Components/Modals/InviteModal/InviteModal.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChalkboardUser } from "@fortawesome/free-solid-svg-icons";
+import { faChalkboardUser, faTrash } from "@fortawesome/free-solid-svg-icons";
+import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
 import { useTeachers } from '../../../Components/Hooks/useEntities.js'; 
 import { TeacherService } from '../../../Utils/EntityService.js'; 
 import { useToast } from '../../../Components/Toast/ToastContext/ToastContext.jsx'; 
+import { useAuth } from '../../../Components/Authentication/AuthProvider/AuthProvider';
 
 function AdminTeachers() {
   const { success, error: toastError } = useToast();
   const { entities: teachers, refetch: refreshTeachers } = useTeachers();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTeachers, setSelectedTeachers] = useState([]);
+  
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [teacherToInvite, setTeacherToInvite] = useState(null);
+  const [inviteModalMode, setInviteModalMode] = useState('single');
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteModalMode, setDeleteModalMode] = useState('single');
   const [teacherToDelete, setTeacherToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const teacherService = new TeacherService();
@@ -45,6 +58,183 @@ function AdminTeachers() {
     setRefreshTrigger(prev => prev + 1);
   }, [refreshTeachers]);
 
+  const handleSingleInviteClick = (teacher) => {
+    setInviteModalMode('single');
+    setTeacherToInvite(teacher);
+    setIsInviteModalOpen(true);
+  };
+
+  const handleBulkInviteClick = () => {
+    if (selectedTeachers.length > 0) {
+      setInviteModalMode('bulk');
+      setIsInviteModalOpen(true);
+    }
+  };
+
+  const sendInvitationAPI = async (teacherId) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/teacher-invite/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherId: teacherId, invitedBy: user?.id }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        if (data.emailTemplate) {
+          const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>Email to ${data.teacherName}</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                .container { max-width: 800px; margin: 0 auto; }
+                .header { background: #3B82F6; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+                .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
+                .actions { margin-top: 20px; display: flex; gap: 10px; }
+                button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+                .copy-btn { background: #3B82F6; color: white; }
+                .email-btn { background: #10b981; color: white; }
+                .close-btn { background: #6b7280; color: white; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h2>📧 Email for ${data.teacherName}</h2>
+                  <p>Copy this email and send to the teacher</p>
+                </div>
+                <div class="content">
+                  <h3>Subject: ${data.emailTemplate.subject}</h3>
+                  <hr>
+                  <div id="email-content">
+                    ${data.emailTemplate.html}
+                  </div>
+                  <hr>
+                  <div class="actions">
+                    <button class="copy-btn" onclick="copyToClipboard()">📋 Copy Email HTML</button>
+                    <button class="email-btn" onclick="openEmailClient()">📨 Open Email Client</button>
+                    <button class="close-btn" onclick="window.close()">Close</button>
+                  </div>
+                </div>
+              </div>
+              <script>
+                function copyToClipboard() {
+                  const html = document.getElementById('email-content').innerHTML;
+                  const subject = "${data.emailTemplate.subject}";
+                  const text = "${data.emailTemplate.text.replace(/\n/g, '\\\\n')}";
+                  
+                  navigator.clipboard.writeText(html)
+                    .then(() => alert('✅ Email HTML copied to clipboard!'));
+                }
+                
+                function openEmailClient() {
+                  const subject = encodeURIComponent("${data.emailTemplate.subject}");
+                  const body = encodeURIComponent(\`${data.emailTemplate.text}\`);
+                  window.open('mailto:${data.email}?subject=' + subject + '&body=' + body);
+                }
+              </script>
+            </body>
+            </html>
+          `;
+          
+          const win = window.open();
+          win.document.write(htmlContent);
+          win.document.close();
+        }
+        
+        alert(
+          `✅ TEACHER ACCOUNT CREATED!\n\n` +
+          `Teacher: ${data.teacherName}\n` +
+          `Email: ${data.email}\n` +
+          `Password: ${data.tempPassword}\n` +
+          `Login: ${data.loginUrl}\n\n` +
+          `A new window opened with the email template.\n` +
+          `Copy it and send to the teacher.`
+        );
+        
+        return { success: true, data };
+      } else {
+        return { success: false, error: data.error || 'Failed to create account' };
+      }
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const sendBulkInvitationsAPI = async (teacherIds) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/teacher-invite/invite/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacherIds: teacherIds,
+          invitedBy: user?.id
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        return { 
+          success: true, 
+          data,
+          count: data.results?.success?.length || 0 
+        };
+      } else {
+        return { success: false, error: data.error || 'Failed to send bulk invitations' };
+      }
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const handleConfirmInvite = async (teacherIdOrIds) => {
+    setIsSendingInvite(true);
+    
+    try {
+      if (inviteModalMode === 'single') {
+        const result = await sendInvitationAPI(teacherIdOrIds);
+        
+        if (result.success) {
+          success('Teacher invited successfully');
+          await refreshTeachers();
+          setRefreshTrigger(prev => prev + 1);
+        } else {
+          toastError(`Failed to invite: ${result.error}`);
+        }
+      } else {
+        const result = await sendBulkInvitationsAPI(teacherIdOrIds);
+        
+        if (result.success) {
+          success(`Sent ${result.count} invitation(s) successfully`);
+          await refreshTeachers();
+          setRefreshTrigger(prev => prev + 1);
+          
+          if (result.data.results?.failed?.length > 0) {
+            toastError(`${result.data.results.failed.length} invitation(s) failed`);
+          }
+        } else {
+          toastError(`Failed to send bulk invitations: ${result.error}`);
+        }
+      }
+    } catch (err) {
+      toastError(`Error: ${err.message}`);
+    } finally {
+      setIsSendingInvite(false);
+      setIsInviteModalOpen(false);
+      setTeacherToInvite(null);
+      
+      if (inviteModalMode === 'bulk') {
+        requestAnimationFrame(() => {
+          setSelectedTeachers([]);
+        });
+      }
+    }
+  };
+
   const handleSingleDeleteClick = (teacher) => {
     setDeleteModalMode('single');
     setTeacherToDelete(teacher);
@@ -60,52 +250,84 @@ function AdminTeachers() {
 
   const deleteSingleTeacherAPI = async (teacherId) => {
     try {
-      console.log('🔄 Deleting teacher ID:', teacherId);
-      await teacherService.delete(teacherId);
-      return { success: true };
+      const response = await fetch('http://localhost:5000/api/teacher-invite/delete-teacher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          teacherId: teacherId, 
+          deletedBy: user?.id 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        return { success: true };
+      } else {
+        return { success: false, error: data.error || 'Failed to delete teacher' };
+      }
     } catch (err) {
-      console.error('❌ Error deleting teacher:', err);
-      throw new Error(`Failed to delete teacher: ${err.message}`);
+      return { success: false, error: err.message };
     }
   };
 
   const deleteMultipleTeachersAPI = async (teacherIds) => {
     try {
-      console.log('🔄 Deleting multiple teachers:', teacherIds);
+      const response = await fetch('http://localhost:5000/api/teacher-invite/delete-teachers-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          teacherIds: teacherIds, 
+          deletedBy: user?.id 
+        }),
+      });
+
+      const data = await response.json();
       
-      for (const teacherId of teacherIds) {
-        await teacherService.delete(teacherId);
+      if (data.success) {
+        return { 
+          success: true,
+          count: data.results?.success?.length || 0 
+        };
+      } else {
+        return { success: false, error: data.error || 'Failed to delete teachers' };
       }
-      
-      return { success: true };
     } catch (err) {
-      console.error('❌ Error bulk deleting teachers:', err);
-      throw new Error(`Failed to delete teachers: ${err.message}`);
+      return { success: false, error: err.message };
     }
   };
 
   const handleConfirmDelete = async (teacherIdOrIds) => {
-    console.log('DELETE FUNCTION CALLED! Mode:', deleteModalMode, 'IDs:', teacherIdOrIds);
     setIsDeleting(true);
     
     try {
       if (deleteModalMode === 'single') {
-        await deleteSingleTeacherAPI(teacherIdOrIds);
-        success('Teacher deleted successfully');
+        const result = await deleteSingleTeacherAPI(teacherIdOrIds);
+        
+        if (result.success) {
+          success('Teacher deleted successfully');
+        } else {
+          toastError(`Failed to delete: ${result.error}`);
+        }
       } else {
-        await deleteMultipleTeachersAPI(teacherIdOrIds);
-        success(`${teacherIdOrIds.length} teachers deleted successfully`);
+        const result = await deleteMultipleTeachersAPI(teacherIdOrIds);
+        
+        if (result.success) {
+          success(`${result.count} teacher(s) deleted successfully`);
+          
+          if (result.data?.results?.failed?.length > 0) {
+            toastError(`${result.data.results.failed.length} deletion(s) failed`);
+          }
+        } else {
+          toastError(`Failed to delete: ${result.error}`);
+        }
       }
       
-      // Refresh data
       await refreshTeachers();
       setRefreshTrigger(prev => prev + 1);
       
-      console.log('✅ Delete successful, all data refreshed');
-      
     } catch (err) {
-      console.error('❌ Delete error:', err);
-      toastError(`Failed to delete: ${err.message}`);
+      toastError(`Error: ${err.message}`);
     } finally {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
@@ -127,32 +349,50 @@ function AdminTeachers() {
       <div className={styles.top}>
         <div className={styles.searchAndFilter}>
           <Input 
-            placeholder="Search by name, employee ID, email, phone..." 
+            placeholder="Search Teacher Record" 
             value={searchTerm}
             onChange={handleSearchChange}
+            search="true"
           />
+          
           {selectedTeachers.length > 0 && (
-            <Button
-              color="danger"
-              height="sm"
-              width="md"
-              label={`Delete Selected (${selectedTeachers.length})`}
-              onClick={handleBulkDeleteClick}
-            />
+            <div className={styles.bulkActions}>
+              <Button
+                color="primary"
+                height="sm"
+                width="auto"
+                icon={<ForwardToInboxIcon/>}
+                onClick={handleBulkInviteClick}
+                disabled={isSendingInvite}
+                style={{ marginRight: '10px' }}
+              />
+              <Button
+                color="danger"
+                height="sm"
+                width="auto"
+                icon={<FontAwesomeIcon icon={faTrash} />}
+                onClick={handleBulkDeleteClick}
+                disabled={isDeleting}
+              />
+            </div>
           )}
         </div>
-        <Button 
-          color="success" 
-          height="sm" 
-          width="md" 
-          label="Add Teachers" 
-          onClick={() => setIsOpen(true)}
-        />
+        
+        <div className={styles.addButtons}>
+          <Button 
+            color="success" 
+            height="sm" 
+            width="md" 
+            label="Add Teachers" 
+            onClick={() => setIsUploadModalOpen(true)}
+            style={{ marginRight: '10px' }}
+          />
+        </div>
       </div>
       
       <FileUploadModal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
         entityType="teacher"
         onUploadSuccess={handleUploadSuccess}
       />
@@ -163,10 +403,28 @@ function AdminTeachers() {
         onSelectedTeachersUpdate={handleSelectedTeachersUpdate}
         onTeacherDataUpdate={handleTeacherDataUpdate}
         onSingleDeleteClick={handleSingleDeleteClick}
+        onSingleInviteClick={handleSingleInviteClick}
         refreshTeachers={refreshTeachers}
       />
       
-      <DeleteTeacherModal
+      <InviteModal
+        isOpen={isInviteModalOpen}
+        onClose={() => {
+          if (!isSendingInvite) {
+            setIsInviteModalOpen(false);
+            setTeacherToInvite(null);
+          }
+        }}
+        teacher={inviteModalMode === 'single' ? teacherToInvite : null}
+        selectedTeachers={inviteModalMode === 'bulk' ? selectedTeachers : []}
+        teacherData={teachers}
+        onConfirm={inviteModalMode === 'single' ? handleConfirmInvite : undefined}
+        onConfirmBulk={inviteModalMode === 'bulk' ? handleConfirmInvite : undefined}
+        loading={isSendingInvite}
+      />
+      
+      {/* UPDATED: Using DeleteEntityModal instead of DeleteTeacherModal */}
+      <DeleteEntityModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
           if (!isDeleting) {
@@ -174,9 +432,10 @@ function AdminTeachers() {
             setTeacherToDelete(null);
           }
         }}
-        teacher={deleteModalMode === 'single' ? teacherToDelete : null}
-        selectedTeachers={deleteModalMode === 'bulk' ? selectedTeachers : []}
-        teacherData={teachers}
+        entity={deleteModalMode === 'single' ? teacherToDelete : null}
+        selectedEntities={deleteModalMode === 'bulk' ? selectedTeachers : []}
+        entityData={teachers}
+        entityType="teacher"
         onConfirm={deleteModalMode === 'single' ? handleConfirmDelete : undefined}
         onConfirmBulk={deleteModalMode === 'bulk' ? handleConfirmDelete : undefined}
         currentFilter={searchTerm}

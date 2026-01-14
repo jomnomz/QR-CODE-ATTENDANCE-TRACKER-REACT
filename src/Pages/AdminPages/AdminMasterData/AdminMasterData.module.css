@@ -1,0 +1,117 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  width: 100%;
+}
+
+.searchAndFilter {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex: 1;
+  min-width: 300px;
+  width: 100%;
+}
+
+.bulkActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 15px;
+}
+
+.addButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.tabContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  height: calc(100vh - 200px); /* Add this to limit height */
+}
+
+.tabsContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.tableInfo {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+}
+
+.tableInfo p {
+  margin: 0;
+  font-weight: bold;
+  color: #003a02;
+  white-space: nowrap;
+}
+
+/* REMOVE or CHANGE this .tableWrapper class */
+/* Instead of wrapping the tables in a scrollable container, */
+/* let the tables handle their own scrolling */
+.tabContent {
+  width: 100%;
+  height: 100%;
+  min-height: 400px; /* Ensure minimum height */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tabsContainer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .tabs {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .searchAndFilter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .bulkActions {
+    margin-left: 0;
+    justify-content: center;
+  }
+  
+  .top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .tableInfo {
+    align-self: flex-start;
+    margin-top: 10px;
+  }
+}

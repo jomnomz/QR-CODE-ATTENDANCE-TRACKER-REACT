@@ -4,21 +4,50 @@
   flex-direction: column;
 }
 
-.guardianTable {
-  margin-top: 10px;
+.searchContainer {
+  margin-bottom: 15px;
 }
+
+.classContainers {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+  align-items: center; /* Align buttons and info vertically */
+}
+
+.gradeFilters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tableInfo {
+  margin-left: 20px; /* Space between buttons and info */
+  padding-bottom: 5px;
+}
+
+.tableInfo p {
+  margin: 0;
+  font-weight: bold;
+  color: #003a02;
+  font-size: 14px;
+  white-space: nowrap;
+} 
 
 .tableWrapper {
   max-height: 59vh;
   overflow-y: auto;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
+  width: 98%;
 }
 
-table {
-  width: 1290px;
+.tableWrapper table {
+  width: 100%;
   border-collapse: collapse;
   margin: 0;
+  table-layout: auto;
 }
 
 .tableWrapper thead th {
@@ -32,11 +61,34 @@ table {
 th {
   padding: 12px;
   text-align: center;
+  font-weight: bold;
 }
 
 td, th {
   text-align: center;
   padding: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.sectionHeader span {
+  font-weight: bold;
+  white-space: nowrap;
 }
 
 tbody tr {
@@ -58,10 +110,8 @@ tbody tr {
   cursor: pointer;
 }
 
-.classContainers {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 5px;
+.guardianRow:hover td {
+  color: white;
 }
 
 .guardianCard {
@@ -88,6 +138,12 @@ tbody tr {
   padding: 20px;
   opacity: 1;
   transform: scaleY(1);
+}
+
+.details {
+  display: flex;
+  flex-direction: row;
+  gap: 50px; 
 }
 
 .expandRow {
@@ -125,7 +181,7 @@ tbody tr {
   margin: 4px 0;
 }
 
-.loading, .error, .noGuardian {
+.loading, .error, .noGuardians {
   text-align: center;
   padding: 20px;
   font-size: 16px;
@@ -138,17 +194,12 @@ tbody tr {
   border-radius: 4px;
 }
 
-.tableInfo {
-  display: flex;
-  flex-direction: column;
-  justify-content: end;
+.noGuardians {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 40px;
 }
-
-.tableInfo p {
-  margin: 0;
-  font-weight: bold;
-  color: #003a02;
-} 
 
 .icon {
   font-size: 30px;
@@ -159,6 +210,7 @@ tbody tr {
 
 .icon svg {
   transition: color 0.2s;
+  color: #6C757D;
 }
 
 .icon svg:hover {
@@ -230,6 +282,12 @@ tbody tr {
   cursor: not-allowed;
 }
 
+.icon button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
 .guardianRow {
   cursor: pointer;
 }
@@ -250,6 +308,156 @@ tbody tr {
   background-color: inherit;
 }
 
+.editSelect {
+  width: 100%;
+  padding: 8px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.editSelect:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.editInput[list] {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.editInput[list]:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.selectedRow {
+  background-color: #e3f2fd !important;
+}
+
+.selectedRow:hover {
+  background-color: #bbdefb !important;
+}
+
+.errorRow {
+  background-color: #ffebee !important;
+}
+
+.errorMessages {
+  padding: 10px !important;
+  border-bottom: 2px solid #f44336;
+}
+
+.errorMessage {
+  color: #f44336;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.errorMessage:last-child {
+  margin-bottom: 0;
+}
+
+.errorInput {
+  border-color: #f44336 !important;
+  background-color: #ffebee;
+}
+
+/* Column widths using percentages */
+.tableWrapper table th:nth-child(1),
+.tableWrapper table td:nth-child(1) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(2),
+.tableWrapper table td:nth-child(2) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(3),
+.tableWrapper table td:nth-child(3) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(4),
+.tableWrapper table td:nth-child(4) {
+  width: 15%;
+  min-width: 150px;
+}
+
+.tableWrapper table th:nth-child(5),
+.tableWrapper table td:nth-child(5) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(6),
+.tableWrapper table td:nth-child(6) {
+  width: 15%;
+  min-width: 150px;
+}
+
+.tableWrapper table th:nth-child(7),
+.tableWrapper table td:nth-child(7) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.tableWrapper table th:nth-child(8),
+.tableWrapper table td:nth-child(8) {
+  width: 10%;
+  min-width: 100px;
+}
+
 .action-button {
   cursor: pointer;
+}
+
+.editFieldContainer {
+  position: relative;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .details {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Allow horizontal scroll only on mobile */
+  .guardianTableContainer {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .classContainers {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .tableInfo {
+    margin-left: 0;
+    margin-top: 10px;
+    align-self: flex-start;
+  }
+  
+  .tableInfo p {
+    white-space: normal;
+    text-align: left;
+  }
+  
+  .searchContainer input {
+    max-width: 100%;
+  }
 }

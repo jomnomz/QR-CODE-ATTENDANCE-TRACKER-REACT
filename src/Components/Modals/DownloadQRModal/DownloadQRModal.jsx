@@ -7,6 +7,7 @@ import InfoBox from '../../UI/InfoBoxes/InfoBox/InfoBox.jsx';
 import EntityList from '../../List/EntityList/EntityList.jsx';
 import TitleModalLabel from '../../UI/Labels/TitleModalLabel/TitleModalLabel.jsx';
 import MessageModalLabel from '../../UI/Labels/MessageModalLabel/MessageModalLabel.jsx';
+import QRCode from 'qrcode';
 
 function DownloadQRModal({
   isOpen,
@@ -15,18 +16,43 @@ function DownloadQRModal({
   studentData = [],
   currentFilter = '',
   currentSection = '',
-  currentGrade = ''
+  currentGrade = '',
+  // Add these props to get grade and section names
+  gradesData = [],
+  sectionsData = []
 }) {
   const { success, error } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   
   const selectedCount = selectedStudents.length;
   
+  // Enhanced student objects with proper grade and section names
   const selectedStudentObjects = React.useMemo(() => 
     selectedStudents
-      .map(studentId => studentData.find(s => s.id === studentId))
+      .map(studentId => {
+        const student = studentData.find(s => s.id === studentId);
+        if (!student) return undefined;
+        
+        // Get grade name from gradesData using grade_id
+        const grade = gradesData.find(g => g.id === student.grade_id);
+        const gradeName = grade ? grade.grade_level : student.grade || 'N/A';
+        
+        // Get section name from sectionsData using section_id
+        const section = sectionsData.find(s => s.id === student.section_id);
+        const sectionName = section ? section.section_name : student.section || 'N/A';
+        
+        return {
+          ...student,
+          // Override with proper names from related tables
+          grade: gradeName,
+          section: sectionName,
+          // Also keep original IDs if needed
+          grade_id: student.grade_id,
+          section_id: student.section_id
+        };
+      })
       .filter(student => student !== undefined),
-    [selectedStudents, studentData]
+    [selectedStudents, studentData, gradesData, sectionsData]
   );
 
   useEffect(() => {
@@ -45,7 +71,106 @@ function DownloadQRModal({
     return `from Grade ${currentGrade}`;
   };
 
+  // Function to generate QR code image with student info BELOW the QR code
+  const generateQRCodeImage = async (student) => {
+    // Use the properly formatted grade and section names
+    const gradeDisplay = student.grade || 'N/A';
+    const sectionDisplay = student.section || 'N/A';
+    
+    // Create the data object for QR code
+    const qrData = JSON.stringify({
+      lrn: student.lrn,
+      token: student.qr_verification_token,
+      name: `${student.first_name} ${student.last_name}`,
+      grade: gradeDisplay,
+      section: sectionDisplay,
+      grade_id: student.grade_id,
+      section_id: student.section_id,
+      type: 'student_attendance'
+    });
+    
+    // Create a larger canvas for QR code + text below
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size: QR code (250x250) + space for text below (100px)
+    canvas.width = 300;
+    canvas.height = 400; // Extra height for text below
+    
+    // Draw white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    try {
+      // Create a temporary canvas JUST for the QR code
+      const qrCanvas = document.createElement('canvas');
+      qrCanvas.width = 250;
+      qrCanvas.height = 250;
+      
+      // Generate QR code to the temporary canvas
+      await QRCode.toCanvas(qrCanvas, qrData, {
+        width: 250,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+      
+      // Position QR code in center of main canvas
+      const qrX = (canvas.width - 250) / 2;
+      const qrY = 20; // Top padding
+      
+      // Draw QR code onto main canvas
+      ctx.drawImage(qrCanvas, qrX, qrY);
+      
+      // Draw student info BELOW the QR code
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      
+      // Student name
+      ctx.font = 'bold 18px Arial';
+      const fullName = `${student.first_name} ${student.last_name}`;
+      ctx.fillText(fullName, canvas.width / 2, qrY + 280);
+      
+      // LRN
+      ctx.font = '14px Arial';
+      ctx.fillText(`LRN: ${student.lrn}`, canvas.width / 2, qrY + 305);
+      
+      // Grade and Section - use formatted display values
+      ctx.fillText(`Grade ${gradeDisplay} - Section ${sectionDisplay}`, canvas.width / 2, qrY + 330);
+      
+      // Type label
+      ctx.font = 'italic 12px Arial';
+      ctx.fillText('Student Attendance QR Code', canvas.width / 2, qrY + 355);
+      
+      // Add a border/separator line
+      ctx.beginPath();
+      ctx.moveTo(20, qrY + 265);
+      ctx.lineTo(canvas.width - 20, qrY + 265);
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // Convert canvas to Blob
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/png', 1.0);
+      });
+      
+    } catch (err) {
+      console.error('Error generating QR code:', err);
+      throw err;
+    }
+  };
+
   const handleDownloadZIP = async () => {
+    if (selectedCount === 0) {
+      error('No students selected');
+      return;
+    }
+    
     setIsProcessing(true);
     
     try {
@@ -53,48 +178,20 @@ function DownloadQRModal({
       const JSZip = JSZipModule.default;
       const zip = new JSZip();
       
-      const folderName = `QR_Codes_${currentGrade}_${currentSection || 'All'}_${new Date().toISOString().split('T')[0]}`;
+      const folderName = `QR_Codes_${currentGrade || 'All'}_${currentSection || 'All'}_${new Date().toISOString().split('T')[0]}`;
       const qrFolder = zip.folder(folderName);
       
       for (const student of selectedStudentObjects) {
-        const qrData = JSON.stringify({
-          lrn: student.lrn,
-          token: student.qr_verification_token,
-          name: `${student.first_name} ${student.last_name}`,
-          grade: student.grade,
-          section: student.section,
-          type: 'student_attendance'
-        });
-        
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 200;
-        canvas.height = 200;
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 200, 200);
-        
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('QR Code', 100, 80);
-        
-        ctx.font = '12px Arial';
-        ctx.fillText(student.lrn, 100, 110);
-        ctx.fillText(`${student.first_name} ${student.last_name}`, 100, 130);
-        ctx.fillText(`${student.grade}-${student.section}`, 100, 150);
-        
-        const pngData = canvas.toDataURL('image/png');
-        const base64Data = pngData.split(',')[1];
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        try {
+          const qrBlob = await generateQRCodeImage(student);
+          const fileName = `QR_${student.lrn}_${student.first_name}_${student.last_name}.png`.replace(/\s+/g, '_');
+          qrFolder.file(fileName, qrBlob);
+        } catch (err) {
+          console.error(`Failed to generate QR for ${student.lrn}:`, err);
         }
-        const byteArray = new Uint8Array(byteNumbers);
         
-        const fileName = `QR_${student.lrn}_${student.first_name}_${student.last_name}.png`;
-        qrFolder.file(fileName, byteArray);
+        // Add small delay to prevent UI freezing
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
       
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -104,6 +201,8 @@ function DownloadQRModal({
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
+      
+      URL.revokeObjectURL(downloadLink.href);
       
       success(`Downloaded ${selectedCount} QR codes as ZIP file`);
       onClose();
@@ -117,49 +216,39 @@ function DownloadQRModal({
   };
 
   const handleDownloadIndividual = async () => {
+    if (selectedCount === 0) {
+      error('No students selected');
+      return;
+    }
+    
     setIsProcessing(true);
     
     try {
+      let downloadedCount = 0;
+      
       for (const student of selectedStudentObjects) {
-        const qrData = JSON.stringify({
-          lrn: student.lrn,
-          token: student.qr_verification_token,
-          name: `${student.first_name} ${student.last_name}`,
-          grade: student.grade,
-          section: student.section,
-          type: 'student_attendance'
-        });
+        try {
+          const qrBlob = await generateQRCodeImage(student);
+          const url = URL.createObjectURL(qrBlob);
+          const downloadLink = document.createElement('a');
+          downloadLink.href = url;
+          downloadLink.download = `QR_${student.lrn}_${student.first_name}_${student.last_name}.png`.replace(/\s+/g, '_');
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          
+          // Clean up URL object
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+          downloadedCount++;
+        } catch (err) {
+          console.error(`Failed to generate QR for ${student.lrn}:`, err);
+        }
         
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 200;
-        canvas.height = 200;
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 200, 200);
-        
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('QR Code', 100, 80);
-        
-        ctx.font = '12px Arial';
-        ctx.fillText(student.lrn, 100, 110);
-        ctx.fillText(`${student.first_name} ${student.last_name}`, 100, 130);
-        ctx.fillText(`${student.grade}-${student.section}`, 100, 150);
-        
-        const pngData = canvas.toDataURL('image/png');
-        const downloadLink = document.createElement('a');
-        downloadLink.href = pngData;
-        downloadLink.download = `QR_${student.lrn}_${student.first_name}_${student.last_name}.png`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        
+        // Add delay between downloads
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      success(`Downloaded ${selectedCount} QR codes`);
+      success(`Downloaded ${downloadedCount} QR codes`);
       onClose();
       
     } catch (err) {
@@ -189,24 +278,24 @@ function DownloadQRModal({
         />
         
         <InfoBox type="note">
-          <strong>Note:</strong> This will download QR codes for all {selectedCount} selected student{selectedCount !== 1 ? 's' : ''}. QR Codes can be downloaded as Zip File or as Individual Files.
+          <strong>Note:</strong> Each QR code will contain student information (Name, LRN, Grade, Section) below the scannable QR code.
         </InfoBox>
         
         <div className={styles.buttonGroup}>
           <Button
-            label={isProcessing ? 'Processing...' : 'ZIP'}
+            label={isProcessing ? 'Processing...' : 'Download as ZIP'}
             color="primary"
             onClick={handleDownloadZIP}
-            disabled={isProcessing}
-            width="xs"
+            disabled={isProcessing || selectedCount === 0}
+            width="md"
             height="sm"
           />
           <Button
-            label={isProcessing ? 'Processing...' : 'Individual'}
+            label={isProcessing ? 'Processing...' : 'Download Individual'}
             color="success"
             onClick={handleDownloadIndividual}
-            disabled={isProcessing}
-            width="sm"
+            disabled={isProcessing || selectedCount === 0}
+            width="md"
             height="sm"
           />
           <Button

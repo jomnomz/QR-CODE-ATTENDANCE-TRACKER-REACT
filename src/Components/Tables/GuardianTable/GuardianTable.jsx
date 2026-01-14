@@ -1,36 +1,124 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useGuardians } from '../../Hooks/useEntities';
 import { useEntityEdit } from '../../Hooks/useEntityEdit';
-import { useRowExpansion } from '../../Hooks/useRowExpansion';
-import { GuardianService } from '../../../Utils/EntityService'; 
+import { useRowExpansion } from '../../hooks/useRowExpansion';
 import { grades } from '../../../Utils/tableHelpers';
 import { formatNA } from '../../../Utils/Formatters';
 import { sortGuardians } from '../../../Utils/SortEntities'; 
 import Button from '../../UI/Buttons/Button/Button';
+import Input from '../../UI/Input/Input';
 import styles from './GuardianTable.module.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPenToSquare } from "@fortawesome/free-solid-svg-icons";
-import { sortEntities } from '../../../Utils/SortEntities';
+import { supabase } from '../../../lib/supabase'; 
+import SectionDropdown from '../../UI/Buttons/SectionDropdown/SectionDropdown';
 
 const GuardianTable = () => {
-  const { currentClass, entities: guardians, loading, error, changeClass, setEntities } = useGuardians();
+  const [guardians, setGuardians] = useState([]);
+  const [filteredGuardians, setFilteredGuardians] = useState([]);
+  const [currentGrade, setCurrentGrade] = useState('all');
+  const [currentSection, setCurrentSection] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
   const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
   const { 
     editingId, 
     editFormData, 
     saving, 
-    validationErrors,  // ADD THIS
+    validationErrors,
     startEdit, 
     cancelEdit, 
     updateEditField, 
     saveEdit 
-  } = useEntityEdit(guardians, setEntities, 'guardian');
+  } = useEntityEdit(filteredGuardians, setFilteredGuardians, 'guardian');
   const [localGuardians, setLocalGuardians] = useState([]);
 
-  // INDUSTRY STANDARD: Create service instance
-  const guardianService = useMemo(() => new GuardianService(), []);
+  // Fetch guardians from students table with proper joins
+  const fetchGuardians = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      let query = supabase
+        .from('students')
+        .select(`
+          id,
+          guardian_first_name,
+          guardian_middle_name,
+          guardian_last_name,
+          guardian_email,
+          guardian_phone_number,
+          first_name,
+          last_name,
+          middle_name,
+          lrn,
+          grade:grades(grade_level),
+          section:sections(section_name)
+        `)
+        .not('guardian_first_name', 'is', null)
+        .not('guardian_last_name', 'is', null);
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      // Transform data to guardian format
+      const transformedData = (data || []).map(student => ({
+        id: student.id,
+        first_name: student.guardian_first_name,
+        middle_name: student.guardian_middle_name,
+        last_name: student.guardian_last_name,
+        email: student.guardian_email,
+        phone_number: student.guardian_phone_number,
+        // Student information
+        guardian_of: `${student.first_name} ${student.middle_name || ''} ${student.last_name}`.trim(),
+        student_lrn: student.lrn,
+        // Flatten grade and section
+        grade: student.grade?.grade_level || 'N/A',
+        section: student.section?.section_name || 'N/A',
+        // For filtering
+        full_name: `${student.guardian_first_name} ${student.guardian_middle_name || ''} ${student.guardian_last_name}`.trim().toLowerCase(),
+        student_full_name: `${student.first_name} ${student.middle_name || ''} ${student.last_name}`.trim().toLowerCase()
+      })).filter(guardian => guardian.first_name && guardian.last_name);
+      
+      setGuardians(transformedData);
+      
+    } catch (err) {
+      console.error('Error fetching guardians:', err);
+      setError(err.message);
+      setGuardians([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Sync and sort local state with hook state
+  // Initial fetch
+  useEffect(() => {
+    fetchGuardians();
+    
+    // Subscribe to student changes (since guardians are in students table)
+    const subscription = supabase
+      .channel('guardians-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'students'
+        },
+        () => {
+          fetchGuardians();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Sync and sort local state with fetched guardians
   useEffect(() => {
     if (guardians && guardians.length > 0) {
       const sortedGuardians = sortGuardians(guardians);
@@ -40,13 +128,93 @@ const GuardianTable = () => {
     }
   }, [guardians]);
 
-  // Use sorted guardians for display
-  const sortedGuardians = useMemo(() => {
-  return sortEntities(localGuardians, { type: 'guardian' });
-}, [localGuardians]);
+  // Apply filters and search
+  useEffect(() => {
+    if (!localGuardians || localGuardians.length === 0) {
+      setFilteredGuardians([]);
+      return;
+    }
 
-  const handleClassChange = (className) => {
-    changeClass(className);
+    let result = [...localGuardians];
+
+    // Apply grade filter
+    if (currentGrade !== 'all') {
+      result = result.filter(guardian => guardian.grade === currentGrade);
+    }
+
+    // Apply section filter
+    if (currentSection) {
+      result = result.filter(guardian => guardian.section === currentSection);
+    }
+
+    // Apply search query
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(guardian => 
+        guardian.full_name.includes(query) ||
+        guardian.email?.toLowerCase().includes(query) ||
+        guardian.phone_number?.includes(query) ||
+        guardian.guardian_of.toLowerCase().includes(query) ||
+        guardian.student_lrn?.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredGuardians(result);
+  }, [localGuardians, currentGrade, currentSection, searchQuery]);
+
+  // Get unique sections for the current grade
+  const availableSections = useMemo(() => {
+    if (!localGuardians || localGuardians.length === 0) return [];
+    
+    let guardiansToFilter = [...localGuardians];
+    
+    if (currentGrade !== 'all') {
+      guardiansToFilter = guardiansToFilter.filter(g => g.grade === currentGrade);
+    }
+    
+    const sections = guardiansToFilter
+      .map(g => g.section)
+      .filter(section => section && section !== 'N/A');
+    
+    return [...new Set(sections)].sort();
+  }, [localGuardians, currentGrade]);
+
+  const handleGradeChange = (grade) => {
+    setCurrentGrade(grade);
+    // Reset section filter when grade changes
+    setCurrentSection('');
+  };
+
+  const handleSectionChange = (section) => {
+    setCurrentSection(section);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
+  const getTableInfoMessage = () => {
+    const guardianCount = filteredGuardians.length;
+    
+    let message = `Showing ${guardianCount} guardian/s`;
+    
+    if (currentGrade !== 'all') {
+      message += ` in Grade ${currentGrade}`;
+    }
+    
+    if (currentSection) {
+      message += `, Section ${currentSection}`;
+    }
+    
+    if (searchQuery) {
+      message += ` matching "${searchQuery}"`;
+    }
+    
+    return message;
   };
 
   const handleEditClick = (guardian, e) => {
@@ -54,26 +222,35 @@ const GuardianTable = () => {
     startEdit(guardian);
   };
 
-  // INDUSTRY STANDARD: Using instance method
   const handleSaveEdit = async (guardianId, e) => {
     if (e) e.stopPropagation();
     
     const result = await saveEdit(
       guardianId, 
-      currentClass, 
-      (id, data) => guardianService.updateGuardian(id, data)
+      async (id, data) => {
+        // Update guardian info in the student record
+        const updateData = {
+          guardian_first_name: data.first_name,
+          guardian_middle_name: data.middle_name,
+          guardian_last_name: data.last_name,
+          guardian_email: data.email,
+          guardian_phone_number: data.phone_number,
+          updated_at: new Date().toISOString()
+        };
+        
+        const { error } = await supabase
+          .from('students')
+          .update(updateData)
+          .eq('id', id);
+        
+        if (error) throw error;
+        return { success: true };
+      }
     );
     
     if (result.success) {
-      // Update local state
-      const updatedGuardians = await guardianService.fetchAll();
-      const filteredGuardians = currentClass === 'all' 
-        ? updatedGuardians
-        : updatedGuardians.filter(g => g.grade === currentClass);
-      
-      // Sort the updated guardians
-      const sortedUpdatedGuardians = sortGuardians(filteredGuardians);
-      setLocalGuardians(sortedUpdatedGuardians);
+      // Refresh guardians after update
+      fetchGuardians();
     }
   };
 
@@ -161,7 +338,10 @@ const GuardianTable = () => {
             Guardian Of: {guardian.guardian_of}
           </div>
           <div className={styles.guardianInfo}>
-            Grade and Section: {guardian.grade}-{guardian.section}
+            Student LRN: {guardian.student_lrn || 'N/A'}
+          </div>
+          <div className={styles.guardianInfo}>
+            Grade and Section: {guardian.grade} - {guardian.section}
           </div>
           <div className={styles.guardianInfo}>
             Email: {formatNA(guardian.email)}
@@ -209,36 +389,49 @@ const GuardianTable = () => {
   return (
     <div className={styles.guardianTableContainer} ref={tableRef}>
       <div className={styles.guardianTable}>
+        {/* Search Input - Positioned like students page */}
+        <div className={styles.searchContainer}>
+          <Input
+            placeholder="Search guardians by name, email, phone, or student details..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            search={true}
+          />
+        </div>
+
+        {/* Grade Filter Buttons WITH Table Info beside them */}
         <div className={styles.classContainers}>
-          <Button 
-            label="All"
-            tabBottom={true}
-            height="xs"
-            width="xs-sm"
-            color="grades"
-            active={currentClass === 'all'}
-            onClick={() => handleClassChange('all')}
-          >
-            All
-          </Button>
-          
-          {grades.map(grade => (
+          <div className={styles.gradeFilters}>
             <Button 
-              key={grade}
-              label={`Grade ${grade}`}
+              label="All"
               tabBottom={true}
               height="xs"
               width="xs-sm"
               color="grades"
-              active={currentClass === grade}
-              onClick={() => handleClassChange(grade)}
+              active={currentGrade === 'all'}
+              onClick={() => handleGradeChange('all')}
             >
-              Grade {grade}
+              All
             </Button>
-          ))}
+            
+            {grades.map(grade => (
+              <Button 
+                key={grade}
+                label={`Grade ${grade}`}
+                tabBottom={true}
+                height="xs"
+                width="xs-sm"
+                color="grades"
+                active={currentGrade === grade}
+                onClick={() => handleGradeChange(grade)}
+              >
+                Grade {grade}
+              </Button>
+            ))}
+          </div>
 
           <div className={styles.tableInfo}>
-            <p>Showing {sortedGuardians.length} guardian/s {currentClass !== 'all' ? `in Grade ${currentClass}` : 'across all grades'}</p>
+            <p>{getTableInfoMessage()}</p>
           </div>
         </div>
 
@@ -250,24 +443,34 @@ const GuardianTable = () => {
                 <th>MIDDLE NAME</th>
                 <th>LAST NAME</th>
                 <th>GUARDIAN OF</th>
-                <th>GRADE & SECTION</th>
+                <th>
+                  <div className={styles.sectionHeader}>
+                    <div className={styles.sectionHeaderRow}>
+                      <span>GRADE & SECTION</span>
+                      <SectionDropdown
+                        availableSections={availableSections}
+                        selectedValue={currentSection}
+                        onSelect={handleSectionChange}
+                        maxHeight={250}
+                      />
+                    </div>
+                  </div>
+                </th>
                 <th>EMAIL ADDRESS</th>
                 <th>PHONE NO.</th>
                 <th>EDIT</th>
               </tr>
             </thead>
             <tbody>
-              {sortedGuardians.length === 0 ? (
+              {filteredGuardians.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className={styles.noGuardian}>
-                    {currentClass === 'all' 
-                      ? 'No guardians found across all grades' 
-                      : `No guardians found in Grade ${currentClass}`}
+                  <td colSpan="8" className={styles.noGuardians}>
+                    {getTableInfoMessage()}
                   </td>
                 </tr>
               ) : (
-                sortedGuardians.map((guardian, index) => {
-                  const visibleRowIndex = sortedGuardians
+                filteredGuardians.map((guardian, index) => {
+                  const visibleRowIndex = filteredGuardians
                     .slice(0, index)
                     .filter(g => !isRowExpanded(g.id))
                     .length;
@@ -285,7 +488,7 @@ const GuardianTable = () => {
                           <td>{renderEditField(guardian, 'middle_name')}</td>
                           <td>{renderEditField(guardian, 'last_name')}</td>
                           <td>{guardian.guardian_of}</td>
-                          <td>{guardian.grade}-{guardian.section}</td>
+                          <td>{guardian.grade} - {guardian.section}</td>
                           <td>{renderEditField(guardian, 'email')}</td>
                           <td>{renderEditField(guardian, 'phone_number')}</td>
                           <td>{renderEditCell(guardian)}</td>

@@ -1,20 +1,33 @@
-.main{
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
 }
 
 .top {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 600px;
-    width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 
-.searchAndFilter{
-    display: flex;
-    gap: 10px;
-    flex-direction: row;
+.searchAndFilter {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex: 1;
+  min-width: 300px;
+}
 
+.bulkActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 15px;
+}
+
+.addButtons {
+  display: flex;
+  gap: 10px;
 }

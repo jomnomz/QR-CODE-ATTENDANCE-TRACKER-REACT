@@ -180,6 +180,7 @@ export const useGuardians = () => {
 export const useTeachers = () => {
   const [currentFilter, setCurrentFilter] = useState(() => getStoredFilter('teacher'));
   const [teachers, setTeachers] = useState([]);
+  const [teacherAssignments, setTeacherAssignments] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -194,6 +195,16 @@ export const useTeachers = () => {
       const data = await teacherService.fetchAll();
       console.log(`✅ Fetched ${data.length} teachers`);
       setTeachers(data);
+      
+      // Fetch assignments for all teachers
+      console.log('🔄 Fetching teacher assignments...');
+      const assignments = {};
+      for (const teacher of data) {
+        const result = await teacherService.getTeacherAssignments(teacher.id);
+        assignments[teacher.id] = result;
+      }
+      setTeacherAssignments(assignments);
+      
     } catch (err) {
       console.error('❌ Error fetching teachers:', err);
       setError('Failed to load teachers');
@@ -216,49 +227,38 @@ export const useTeachers = () => {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'teachers',
         },
         (payload) => {
-          console.log('🆕 REAL-TIME INSERT: New teacher detected:', payload.new);
-          setTeachers(prevTeachers => {
-            const exists = prevTeachers.some(t => t.id === payload.new.id);
-            if (!exists) {
-              return [...prevTeachers, payload.new];
-            }
-            return prevTeachers;
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'teachers',
-        },
-        (payload) => {
-          console.log('🔄 REAL-TIME UPDATE: Teacher updated:', payload.new);
-          setTeachers(prevTeachers =>
-            prevTeachers.map(teacher =>
-              teacher.id === payload.new.id ? payload.new : teacher
-            )
-          );
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'teachers',
-        },
-        (payload) => {
-          console.log('🗑️ REAL-TIME DELETE: Teacher removed:', payload.old.id);
-          setTeachers(prevTeachers =>
-            prevTeachers.filter(teacher => teacher.id !== payload.old.id)
-          );
+          console.log(`🔄 REAL-TIME: Teacher ${payload.eventType}:`, payload.new || payload.old);
+          
+          if (payload.eventType === 'INSERT') {
+            setTeachers(prevTeachers => {
+              const exists = prevTeachers.some(t => t.id === payload.new.id);
+              if (!exists) {
+                return [...prevTeachers, payload.new];
+              }
+              return prevTeachers;
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setTeachers(prevTeachers =>
+              prevTeachers.map(teacher =>
+                teacher.id === payload.new.id ? payload.new : teacher
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setTeachers(prevTeachers =>
+              prevTeachers.filter(teacher => teacher.id !== payload.old.id)
+            );
+            // Remove from assignments
+            setTeacherAssignments(prev => {
+              const newAssignments = { ...prev };
+              delete newAssignments[payload.old.id];
+              return newAssignments;
+            });
+          }
         }
       )
       .subscribe();
@@ -273,17 +273,42 @@ export const useTeachers = () => {
     setStoredFilter('teacher', filterName);
   };
 
-  const refetch = () => {
-    fetchTeachers();
+  const refetch = async () => {
+    await fetchTeachers();
+  };
+
+  const getTeacherAssignments = (teacherId) => {
+    return teacherAssignments[teacherId] || { subjects: [], sections: [], assignments: [] };
+  };
+
+  const updateTeacherAssignments = async (teacherId, assignments) => {
+    try {
+      const result = await teacherService.updateTeacherAssignments(teacherId, assignments);
+      if (result.success) {
+        // Refresh assignments for this teacher
+        const updatedAssignments = await teacherService.getTeacherAssignments(teacherId);
+        setTeacherAssignments(prev => ({
+          ...prev,
+          [teacherId]: updatedAssignments
+        }));
+      }
+      return result;
+    } catch (error) {
+      console.error('Error updating teacher assignments:', error);
+      return { success: false, error: error.message };
+    }
   };
 
   return {
     currentFilter,
     entities: teachers,
+    teacherAssignments,
     loading,
     error,
     changeFilter,
     refetch,
-    setEntities: setTeachers
+    setEntities: setTeachers,
+    getTeacherAssignments,
+    updateTeacherAssignments
   };
 };

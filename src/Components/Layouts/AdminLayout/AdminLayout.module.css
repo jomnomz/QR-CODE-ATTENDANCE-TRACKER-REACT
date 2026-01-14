@@ -1,3 +1,7 @@
 .mainContent {
   transition: margin-left 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100vh;
+  overflow-x: hidden; /* ADD THIS */
 }

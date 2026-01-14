@@ -15,6 +15,8 @@ import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import MenuIcon from '@mui/icons-material/Menu';
+import TableChartIcon from '@mui/icons-material/TableChart';
+
 
 function NavBar({ userType = 'admin', onCollapseChange }) {
   const location = useLocation();
@@ -38,6 +40,7 @@ function NavBar({ userType = 'admin', onCollapseChange }) {
       { path: '/guardians', icon: <FamilyRestroomIcon />, label: 'Guardians', type: 'mui' },
       { path: '/messages', icon: <MessageIcon />, label: 'Messages', type: 'mui' },
       { path: '/attendance', icon: <AssignmentTurnedInIcon />, label: 'Attendance', type: 'mui' },
+      { path: '/masterData', icon: <TableChartIcon />, label: 'Master Data', type: 'mui' },
       { path: '/teachers', icon: faChalkboardUser, label: 'Teachers', type: 'fa' },
       { path: '/reports', icon: <AssignmentIcon />, label: 'Reports', type: 'mui' },
       { path: '/settings', icon: <SettingsIcon />, label: 'Settings', type: 'mui' }
@@ -64,8 +67,8 @@ function NavBar({ userType = 'admin', onCollapseChange }) {
             <p>Welcome!</p>
              <p>
               {userType === 'admin' 
-                ? `Admin ${profile?.first_name} ${profile?.last_name}`
-                : `Teacher ${profile?.first_name} ${profile?.last_name}`
+                ? `Admin ${profile?.last_name}`
+                : `Teacher ${profile?.last_name}`
               }
             </p>
           </>

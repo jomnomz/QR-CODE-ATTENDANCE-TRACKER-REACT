@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+  import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminLayout from './Components/Layouts/AdminLayout/AdminLayout.jsx';
 import TeacherLayout from './Components/Layouts/TeacherLayout/TeacherLayout.jsx';
 import LoginPage from './Pages/LoginPage/LoginPage.jsx';
@@ -9,6 +9,7 @@ import AdminStudents from './Pages/AdminPages/AdminStudents/AdminStudents.jsx';
 import AdminGuardians from './Pages/AdminPages/AdminGuardians/AdminGuardians.jsx';
 import AdminMessages from './Pages/AdminPages/AdminMessages/AdminMessages.jsx';
 import AdminAttendance from './Pages/AdminPages/AdminAttendace/AdminAttendance.jsx';
+import AdminMasterData from './Pages/AdminPages/AdminMasterData/AdminMasterData.jsx';
 import AdminReports from './Pages/AdminPages/AdminReports/AdminReports.jsx';
 import AdminTeachers from './Pages/AdminPages/AdminTeachers/AdminTeachers.jsx';
 import AdminSettings from './Pages/AdminPages/AdminSettings/AdminSettings.jsx';
@@ -47,6 +48,7 @@ function App() {
               <Route path="guardians" element={<AdminGuardians />} />
               <Route path="messages" element={<AdminMessages />} />
               <Route path="attendance" element={<AdminAttendance />} />
+              <Route path="masterData" element={<AdminMasterData />} />
               <Route path="reports" element={<AdminReports />} />
               <Route path="teachers" element={<AdminTeachers />} />
               <Route path="settings" element={<AdminSettings />} />

@@ -23,6 +23,7 @@
     "axios": "^1.13.2",
     "chart.js": "^4.5.1",
     "jszip": "^3.10.1",
+    "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.1",
