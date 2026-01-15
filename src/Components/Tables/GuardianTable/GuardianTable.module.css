@@ -8,23 +8,16 @@
   margin-bottom: 15px;
 }
 
-.classContainers {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 5px;
-  flex-wrap: wrap;
-  align-items: center; /* Align buttons and info vertically */
-}
-
 .gradeFilters {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  margin-bottom: 15px;
 }
 
 .tableInfo {
-  margin-left: 20px; /* Space between buttons and info */
-  padding-bottom: 5px;
+  margin-bottom: 10px;
+  padding: 0 5px;
 }
 
 .tableInfo p {
@@ -32,7 +25,6 @@
   font-weight: bold;
   color: #003a02;
   font-size: 14px;
-  white-space: nowrap;
 } 
 
 .tableWrapper {
@@ -76,14 +68,7 @@ td, th {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.sectionHeaderRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
+  gap: 8px;
 }
 
 .sectionHeader span {
@@ -433,28 +418,11 @@ tbody tr {
     flex-direction: column;
     gap: 20px;
   }
-  
-  /* Allow horizontal scroll only on mobile */
-  .guardianTableContainer {
-    overflow-x: auto;
-  }
 }
 
 @media (max-width: 768px) {
-  .classContainers {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .tableInfo {
-    margin-left: 0;
-    margin-top: 10px;
-    align-self: flex-start;
-  }
-  
-  .tableInfo p {
-    white-space: normal;
-    text-align: left;
+  .gradeFilters {
+    justify-content: center;
   }
   
   .searchContainer input {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useEntityEdit } from '../../Hooks/useEntityEdit';
-import { useRowExpansion } from '../../hooks/useRowExpansion';
+import { useRowExpansion } from '../../Hooks/useRowExpansion';
 import { grades } from '../../../Utils/tableHelpers';
 import { formatNA } from '../../../Utils/Formatters';
 import { sortGuardians } from '../../../Utils/SortEntities'; 
@@ -197,26 +197,6 @@ const GuardianTable = () => {
     setSearchQuery('');
   };
 
-  const getTableInfoMessage = () => {
-    const guardianCount = filteredGuardians.length;
-    
-    let message = `Showing ${guardianCount} guardian/s`;
-    
-    if (currentGrade !== 'all') {
-      message += ` in Grade ${currentGrade}`;
-    }
-    
-    if (currentSection) {
-      message += `, Section ${currentSection}`;
-    }
-    
-    if (searchQuery) {
-      message += ` matching "${searchQuery}"`;
-    }
-    
-    return message;
-  };
-
   const handleEditClick = (guardian, e) => {
     e.stopPropagation();
     startEdit(guardian);
@@ -399,40 +379,44 @@ const GuardianTable = () => {
           />
         </div>
 
-        {/* Grade Filter Buttons WITH Table Info beside them */}
-        <div className={styles.classContainers}>
-          <div className={styles.gradeFilters}>
+        {/* Grade Filter Buttons */}
+        <div className={styles.gradeFilters}>
+          <Button 
+            label="All"
+            tabBottom={true}
+            height="xs"
+            width="xs-sm"
+            color="grades"
+            active={currentGrade === 'all'}
+            onClick={() => handleGradeChange('all')}
+          >
+            All
+          </Button>
+          
+          {grades.map(grade => (
             <Button 
-              label="All"
+              key={grade}
+              label={`Grade ${grade}`}
               tabBottom={true}
               height="xs"
               width="xs-sm"
               color="grades"
-              active={currentGrade === 'all'}
-              onClick={() => handleGradeChange('all')}
+              active={currentGrade === grade}
+              onClick={() => handleGradeChange(grade)}
             >
-              All
+              Grade {grade}
             </Button>
-            
-            {grades.map(grade => (
-              <Button 
-                key={grade}
-                label={`Grade ${grade}`}
-                tabBottom={true}
-                height="xs"
-                width="xs-sm"
-                color="grades"
-                active={currentGrade === grade}
-                onClick={() => handleGradeChange(grade)}
-              >
-                Grade {grade}
-              </Button>
-            ))}
-          </div>
+          ))}
+        </div>
 
-          <div className={styles.tableInfo}>
-            <p>{getTableInfoMessage()}</p>
-          </div>
+        {/* Table Info */}
+        <div className={styles.tableInfo}>
+          <p>
+            Showing {filteredGuardians.length} guardian/s 
+            {currentGrade !== 'all' && ` in Grade ${currentGrade}`}
+            {currentSection && `, Section ${currentSection}`}
+            {searchQuery && `, matching "${searchQuery}"`}
+          </p>
         </div>
 
         <div className={styles.tableWrapper}>
@@ -445,15 +429,13 @@ const GuardianTable = () => {
                 <th>GUARDIAN OF</th>
                 <th>
                   <div className={styles.sectionHeader}>
-                    <div className={styles.sectionHeaderRow}>
-                      <span>GRADE & SECTION</span>
-                      <SectionDropdown
-                        availableSections={availableSections}
-                        selectedValue={currentSection}
-                        onSelect={handleSectionChange}
-                        maxHeight={250}
-                      />
-                    </div>
+                    <span>GRADE & SECTION</span>
+                    <SectionDropdown
+                      availableSections={availableSections}
+                      selectedValue={currentSection}
+                      onSelect={handleSectionChange}
+                      maxHeight={250}
+                    />
                   </div>
                 </th>
                 <th>EMAIL ADDRESS</th>
@@ -465,7 +447,9 @@ const GuardianTable = () => {
               {filteredGuardians.length === 0 ? (
                 <tr>
                   <td colSpan="8" className={styles.noGuardians}>
-                    {getTableInfoMessage()}
+                    {searchQuery || currentGrade !== 'all' || currentSection
+                      ? 'No guardians found matching your filters'
+                      : 'No guardians found'}
                   </td>
                 </tr>
               ) : (
