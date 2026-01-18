@@ -1,0 +1,279 @@
+.studentReportModal {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modalHeader h2 {
+  margin: 0 0 5px 0;
+  color: #1e293b;
+  font-size: 1.5rem;
+}
+
+.studentInfo {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+.lrn, .class {
+  font-size: 13px;
+  color: #64748b;
+  margin-left: 8px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.reportControls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.reportTypeSelector {
+  display: flex;
+  gap: 8px;
+}
+
+.periodNavigation {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.periodNavigation span {
+  font-weight: 600;
+  color: #334155;
+  min-width: 180px;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Updated summary cards - much smaller */
+.summaryCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.summaryCardSmall {
+  background-color: white;
+  border-radius: 6px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.summaryLabelSmall {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summaryValueSmall {
+  font-size: 22px;
+  font-weight: bold;
+  color: #1e293b;
+}
+
+.reportTableContainer {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.reportTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+/* Table headers and cells with center alignment */
+.tableHeader {
+  background-color: #f1f5f9;
+  padding: 10px 12px;
+  text-align: center;
+  font-weight: 600;
+  color: #334155;
+  border-bottom: 2px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+}
+
+.tableCell {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #475569;
+  text-align: center;
+}
+
+/* Only first column left-aligned */
+.tableHeader:first-child,
+.tableCell:first-child {
+  text-align: left;
+}
+
+.reportTable tr:hover {
+  background-color: #f8fafc;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  min-width: 70px;
+}
+
+.statusBadge.present {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.statusBadge.late {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.statusBadge.absent {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.rateCell {
+  position: relative;
+  display: inline-block;
+  min-width: 60px;
+}
+
+.rateBar {
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 3px;
+  background-color: #3b82f6;
+  border-radius: 2px;
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.note {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 12px;
+  padding: 8px;
+  background-color: #f0f9ff;
+  border-radius: 4px;
+  border-left: 3px solid #0ea5e9;
+}
+
+.footerActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.loading, .noData {
+  text-align: center;
+  padding: 30px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Print styles */
+@media print {
+  .modalHeader, .reportControls, .footer, .headerActions {
+    display: none !important;
+  }
+  
+  .tableHeader {
+    background-color: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .studentReportModal {
+    height: auto;
+    overflow: visible;
+  }
+  
+  .reportTableContainer {
+    overflow: visible;
+    height: auto;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .summaryCards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .modalHeader {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .reportControls {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .reportTypeSelector {
+    justify-content: center;
+  }
+  
+  .periodNavigation {
+    justify-content: center;
+  }
+  
+  .summaryCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .reportTable {
+    font-size: 13px;
+  }
+  
+  .tableHeader,
+  .tableCell {
+    padding: 8px;
+  }
+}

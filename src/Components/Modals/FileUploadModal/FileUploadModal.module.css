@@ -2,7 +2,7 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px; /* Increased gap for better spacing */
 }
 
 .dropArea {
@@ -34,8 +34,7 @@
     background-color: #f8fff8;
 }
 
-
-.icon{
+.icon {
     color: green;
 }
 
@@ -63,18 +62,48 @@
     background-color: #f8f9fa;
     border-radius: 4px;
     border-left: 4px solid #3F7857;
+    margin-bottom: 8px;
+}
+
+/* UPDATED: Upload actions side by side */
+.uploadActions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.cancelBtn, .submitBtn {
+    min-width: 100px;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+    border: none;
 }
 
 .submitBtn {
     background-color: #3F7857;
     color: white;
-    border: none;
-    width: 100px;
-    padding: 12px 24px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s;
+}
+
+.submitBtn:hover:not(:disabled) {
+    background-color: #315f44;
+}
+
+.submitBtn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.cancelBtn {
+    background-color: #6c757d;
+    color: white;
+}
+
+.cancelBtn:hover:not(:disabled) {
+    background-color: #5a6268;
 }
 
 .loading, .error, .noStudents {
@@ -91,11 +120,12 @@
 }
 
 .templateLink {
-    margin-top: 10px;
+    margin-top: 4px;
+    margin-bottom: 4px;
     font-size: 0.9em;
 }
 
-.templateLink a {
+.downloadLink {
     color: #007bff;
     text-decoration: none;
     display: inline-flex;
@@ -103,13 +133,16 @@
     gap: 5px;
 }
 
-.templateLink a:hover {
+.downloadLink:hover {
     text-decoration: underline;
+    color: #0056b3;
 }
 
 .fileInfo {
-    padding: 10px;
+    padding: 12px;
     background-color: #f8f9fa;
     border-radius: 5px;
     border-left: 3px solid #28a745;
+    font-size: 14px;
+    margin: 8px 0;
 }

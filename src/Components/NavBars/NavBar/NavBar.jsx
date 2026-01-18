@@ -49,7 +49,6 @@ function NavBar({ userType = 'admin', onCollapseChange }) {
       { path: '/dashboard', icon: <DashboardIcon />, label: 'Dashboard', type: 'mui' },
       { path: '/attendance', icon: <AssignmentTurnedInIcon />, label: 'Attendance', type: 'mui' },
       { path: '/students', icon: faUsers, label: 'Students', type: 'fa' },
-      { path: '/reports', icon: <AssignmentIcon />, label: 'Reports', type: 'mui' },
       { path: '/settings', icon: <SettingsIcon />, label: 'Settings', type: 'mui' }
     ]
   };

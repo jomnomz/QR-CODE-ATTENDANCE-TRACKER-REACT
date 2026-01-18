@@ -149,16 +149,6 @@ function TeacherDashboard() {
               <div className={styles.number}>{teacherClasses.length}</div>
             </div>
           </DashboardCard>
-
-          {/* My Schedule Card */}
-          <DashboardCard colors={{bg: '#06D6A0'}}>
-            <div className={styles.card}>
-              <div className={styles.label}>
-                <FontAwesomeIcon icon={faClock} /> My Schedule
-              </div>
-              <div className={`${styles.number} ${styles.scheduleTime}`}>{formatScheduleForCard()}</div>
-            </div>
-          </DashboardCard>
         </div>
 
         {/* Charts Section - USING TEACHER-ONLY CHARTS */}

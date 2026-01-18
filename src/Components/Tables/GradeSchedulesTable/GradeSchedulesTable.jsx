@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styles from './GradeSchedulesTable.module.css';
 import { EntityService } from '../../../Utils/EntityService';
-import { useRowExpansion } from '../../hooks/useRowExpansion';
-import { useEntityEdit } from '../../hooks/useEntityEdit';
+import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
+import { useEntityEdit } from '../../Hooks/useEntityEdit'; 
 import DeleteEntityModal from '../../Modals/DeleteEntityModal/DeleteEntityModal';
 import { useToast } from '../../Toast/ToastContext/ToastContext';
 import { supabase } from '../../../lib/supabase';
@@ -106,6 +106,39 @@ const calculateClassDuration = (startTime, endTime) => {
   }
 };
 
+// Validation function for schedule data
+const validateScheduleData = (data) => {
+  const errors = {};
+  
+  if (!data.grade_level || data.grade_level === '') {
+    errors.grade_level = 'Grade level is required';
+  }
+  
+  if (!data.class_start) {
+    errors.class_start = 'Start time is required';
+  }
+  
+  if (!data.class_end) {
+    errors.class_end = 'End time is required';
+  }
+  
+  if (data.class_start && data.class_end) {
+    const startTime = data.class_start;
+    const endTime = data.class_end;
+    
+    if (startTime >= endTime) {
+      errors.class_end = 'End time must be after start time';
+    }
+  }
+  
+  const graceMinutes = parseInt(data.grace_period_minutes) || 15;
+  if (graceMinutes < 0 || graceMinutes > 120) {
+    errors.grace_period_minutes = 'Grace period must be between 0 and 120 minutes';
+  }
+  
+  return errors;
+};
+
 const GradeSchedulesTable = ({ 
   searchTerm = '',
   onSelectedSchedulesUpdate,
@@ -177,17 +210,124 @@ const GradeSchedulesTable = ({
     }
   };
   
-  // Entity edit hook
-  const {
-    editingId,
-    editFormData,
-    saving,
-    validationErrors,
-    startEdit,
-    cancelEdit,
-    updateEditField,
-    saveEdit
-  } = useEntityEdit(schedules, setSchedules, 'schedule', fetchSchedules);
+  // Custom entity edit hook for schedules
+  const [editingId, setEditingId] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  const startEdit = (schedule) => {
+    setEditingId(schedule.id);
+    setValidationErrors({});
+    
+    setEditFormData({
+      grade_level: schedule.grade_level.toString(),
+      class_start: schedule.class_start,
+      class_end: schedule.class_end,
+      grace_period_minutes: schedule.grace_period_minutes?.toString() || '15'
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditFormData({});
+    setValidationErrors({});
+  };
+
+  const updateEditField = (field, value) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear validation error for this field if it exists
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  // Save edit function for schedules
+  const saveEdit = async (scheduleId) => {
+    try {
+      setSaving(true);
+      
+      // Validate form data
+      const errors = validateScheduleData(editFormData);
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        throw new Error('Please fix the validation errors');
+      }
+      
+      // Find the grade ID from the selected grade level
+      const selectedGrade = grades.find(g => 
+        g.grade_level.toString() === editFormData.grade_level
+      );
+      
+      if (!selectedGrade) {
+        throw new Error(`Grade ${editFormData.grade_level} not found`);
+      }
+      
+      // Check if this grade already has a schedule (excluding current one)
+      const existingSchedule = schedules.find(s => 
+        s.grade_id === selectedGrade.id && s.id !== scheduleId
+      );
+      
+      if (existingSchedule) {
+        throw new Error(`Grade ${editFormData.grade_level} already has a schedule. Each grade can only have one schedule.`);
+      }
+      
+      // Prepare update data
+      const updateData = {
+        grade_id: selectedGrade.id,
+        class_start: editFormData.class_start,
+        class_end: editFormData.class_end,
+        grace_period_minutes: parseInt(editFormData.grace_period_minutes) || 15,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Update in database
+      const updatedSchedule = await scheduleService.update(scheduleId, updateData);
+      
+      // Update local state
+      setSchedules(prevSchedules => {
+        return prevSchedules.map(schedule => {
+          if (schedule.id === scheduleId) {
+            return {
+              ...schedule,
+              ...updateData,
+              grade_level: editFormData.grade_level,
+              grade_id: selectedGrade.id
+            };
+          }
+          return schedule;
+        });
+      });
+      
+      success('Schedule updated successfully');
+      cancelEdit();
+      
+      return { success: true };
+      
+    } catch (err) {
+      console.error('Error updating schedule:', err);
+      
+      // If it's not a validation error, show toast
+      if (err.message !== 'Please fix the validation errors') {
+        toastError(`Failed to update schedule: ${err.message}`);
+      }
+      
+      return { 
+        success: false, 
+        error: err.message
+      };
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Initial fetch and real-time subscription
   useEffect(() => {
@@ -318,30 +458,7 @@ const GradeSchedulesTable = ({
 
   const handleSaveEdit = async (id, e) => {
     if (e) e.stopPropagation();
-    
-    const result = await saveEdit(id, null, async (id, data) => {
-      // Get grade ID from selected grade level
-      const selectedGrade = grades.find(g => g.grade_level === data.grade_level);
-      if (!selectedGrade) {
-        throw new Error('Selected grade not found');
-      }
-      
-      return await scheduleService.update(id, {
-        grade_id: selectedGrade.id,
-        class_start: data.class_start,
-        class_end: data.class_end,
-        grace_period_minutes: parseInt(data.grace_period_minutes) || 15
-      });
-    });
-
-    if (result.success) {
-      success('Schedule updated successfully');
-    }
-  };
-
-  const handleCancelEdit = (e) => {
-    if (e) e.stopPropagation();
-    cancelEdit();
+    await saveEdit(id);
   };
 
   // Render edit cell
@@ -357,7 +474,10 @@ const GradeSchedulesTable = ({
             {saving ? 'Saving...' : 'Save'}
           </button>
           <button 
-            onClick={(e) => handleCancelEdit(e)}
+            onClick={(e) => {
+              e.stopPropagation();
+              cancelEdit();
+            }}
             disabled={saving}
             className={styles.cancelBtn}
           >

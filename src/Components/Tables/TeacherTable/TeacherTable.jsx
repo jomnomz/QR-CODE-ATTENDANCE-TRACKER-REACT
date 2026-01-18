@@ -568,7 +568,7 @@ const TeacherTable = ({
 
     return (
       <tr className={`${styles.expandRow} ${isRowExpanded(teacher.id) ? styles.expandRowActive : ''}`}>
-        <td colSpan="11">
+        <td colSpan="9">
           <div 
             className={`${styles.studentCard} ${styles.expandableCard}`}
             onClick={(e) => e.stopPropagation()}
@@ -665,10 +665,8 @@ const TeacherTable = ({
                 </th>
                 <th>EMPLOYEE ID</th>
                 <th>FIRST NAME</th>
-                <th>MIDDLE NAME</th>
                 <th>LAST NAME</th>
                 <th>EMAIL ADDRESS</th>
-                <th>PHONE NO.</th>
                 <th>STATUS</th>
                 <th>INVITE</th>
                 <th>EDIT</th>
@@ -678,7 +676,7 @@ const TeacherTable = ({
             <tbody>
               {sortedTeachers.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className={styles.noTeachers}>
+                  <td colSpan="9" className={styles.noTeachers}>
                     {searchTerm 
                       ? `No teachers found matching "${searchTerm}"`
                       : 'No teachers found'
@@ -719,10 +717,8 @@ const TeacherTable = ({
                           </td>
                           <td>{renderField(teacher, 'employee_id')}</td>
                           <td>{renderField(teacher, 'first_name')}</td>
-                          <td>{renderField(teacher, 'middle_name')}</td>
                           <td>{renderField(teacher, 'last_name')}</td>
                           <td>{renderField(teacher, 'email_address')}</td>
-                          <td>{renderField(teacher, 'phone_no')}</td>
                           <td>{renderField(teacher, 'status', false)}</td>
                           <td>
                             <div className={styles.icon}>

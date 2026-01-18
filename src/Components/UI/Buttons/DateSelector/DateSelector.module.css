@@ -1,0 +1,50 @@
+/* Change this class */
+.dateSelector {
+  /* Remove any background, border, padding that creates the white box */
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+}
+
+/* Keep all other styles exactly as they were */
+.dateSelect {
+  /* Keep all your original styling for the dropdown */
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  /* etc... keep whatever styling you had */
+}
+
+.dateSelectorInner {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Adjust if needed */
+  background: none; /* Make sure this is transparent */
+}
+
+/* Restore the indicator styles from your original CSS */
+.currentDateIndicator {
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: #e0e0e0; /* Default gray background */
+  color: #333;
+  transition: all 0.2s ease;
+}
+
+.currentDateIndicatorActive {
+  background-color: #4CAF50; /* Green background for "Today" */
+  color: white;
+}
+
+/* If "Past Date" should have a different color */
+.currentDateIndicator:not(.currentDateIndicatorActive) {
+  background-color: #ff9800; /* Orange for past dates */
+  color: white;
+}

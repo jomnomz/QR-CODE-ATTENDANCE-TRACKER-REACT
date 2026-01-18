@@ -92,7 +92,7 @@ const GuardianTable = ({
     }
   }, [guardians]);
 
-  // Get unique sections from current guardians
+  // Get unique sections from ALL guardians
   const allUniqueSections = useMemo(() => {
     const sections = localGuardians
       .map(guardian => guardian.section || '')
@@ -101,6 +101,26 @@ const GuardianTable = ({
     const uniqueSections = [...new Set(sections)];
     return uniqueSections.sort();
   }, [localGuardians]);
+
+  // Get sections for CURRENT grade only
+  const currentGradeSections = useMemo(() => {
+    if (currentClass === 'all') {
+      return allUniqueSections;
+    }
+    
+    const sections = localGuardians
+      .filter(guardian => guardian.grade === currentClass)
+      .map(guardian => guardian.section || '')
+      .filter(section => section && section !== 'N/A' && section.trim() !== '');
+    
+    const uniqueSections = [...new Set(sections)];
+    return uniqueSections.sort();
+  }, [localGuardians, currentClass, allUniqueSections]);
+
+  // FIXED: Always show only sections for the current grade
+  const sectionsToShowInDropdown = useMemo(() => {
+    return currentGradeSections;
+  }, [currentGradeSections]);
 
   // Use sorted and filtered guardians for display
   const sortedGuardians = useMemo(() => {
@@ -146,6 +166,18 @@ const GuardianTable = ({
       onGradeUpdate(currentClass);
     }
   }, [currentClass, onGradeUpdate]);
+
+  // Clear section selection if it's not valid for the current grade
+  useEffect(() => {
+    if (selectedSection && currentClass !== 'all') {
+      // Check if the selected section exists in the current grade's sections
+      const isValidSection = currentGradeSections.includes(selectedSection);
+      if (!isValidSection && onSectionSelect) {
+        console.log(`🔄 Clearing invalid section selection: ${selectedSection} is not in Grade ${currentClass}`);
+        onSectionSelect('');
+      }
+    }
+  }, [currentClass, currentGradeSections, selectedSection, onSectionSelect]);
 
   const handleClassChange = (className) => {
     setCurrentClass(className);
@@ -422,7 +454,7 @@ const GuardianTable = ({
                     <div className={styles.sectionHeaderRow}>
                       <span>SECTION</span>
                       <SectionDropdown 
-                        availableSections={allUniqueSections}
+                        availableSections={sectionsToShowInDropdown}  // Changed from allUniqueSections
                         selectedValue={selectedSection}
                         onSelect={handleSectionFilter}
                       />

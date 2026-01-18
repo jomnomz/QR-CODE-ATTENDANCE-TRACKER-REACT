@@ -17,20 +17,8 @@ function FileUploadModal({
     const [file, setFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
-    const [uploadEndpoint, setUploadEndpoint] = useState('');
     const fileInputRef = useRef(null);
     const { success, error, warning, info } = useToast();
-
-    // Set upload endpoint based on entity type
-    useEffect(() => {
-        if (entityType === 'teacher') {
-            setUploadEndpoint('http://localhost:5000/api/teachers/upload');
-        } else if (entityType === 'student') {
-            setUploadEndpoint('http://localhost:5000/api/students/upload');
-        } else if (entityType === 'master-data') {
-            setUploadEndpoint('http://localhost:5000/api/master-data/upload');
-        }
-    }, [entityType]);
 
     // DRAG AND DROP HANDLERS
     const handleDragOver = (e) => {
@@ -105,26 +93,15 @@ function FileUploadModal({
         }
     };
 
-    // Get description based on entity type - UPDATED FOR TEACHER
+    // Get description based on entity type - UPDATED
     const getDescription = () => {
-        switch(entityType) {
-            case 'teacher':
-                return (
-                  <div>
-                    <p><strong>Upload an Excel or CSV file with teacher information.</strong></p>
-                  </div>
-                );
-            case 'student':
-                return 'Upload an Excel or CSV file with student information. Required fields: LRN, First Name, Last Name, Grade, Section.';
-            case 'master-data':
-                return 'Upload an Excel or CSV file with master data. Use the template for Grades/Sections/Rooms or Subjects.';
-            default:
-                return 'Upload an Excel or CSV file.';
-        }
+        // UPDATED: Same message for all entity types
+        return 'Upload an Excel or CSV file with the provided template below';
     };
 
-    // Get template link - ADDED FOR TEACHER TEMPLATE
+    // Get template link - FIXED to use relative path
     const getFieldMappingLink = () => {
+        // Using relative paths from public folder
         switch(entityType) {
             case 'teacher':
                 return '/templates/teacher-import-template.xlsx';
@@ -137,58 +114,22 @@ function FileUploadModal({
         }
     };
 
-    // Get extra information based on entity type
-    const getExtraInfo = () => {
-        if (entityType === 'teacher') {
+    // Get important note based on entity type - UPDATED
+    const getImportantNote = () => {
+        // UPDATED: Same message for teacher and master-data, different for student
+        if (entityType === 'student') {
             return (
-                <InfoBox type="info">
-                    <strong>Note:</strong> The Subjects, Grade-Sections (Teaching), and Adviser Grade-Section columns are optional. 
-                    Teachers can be uploaded without assignments and assigned later.
-                    <br/><br/>
-                    <strong>Grade-Section formats accepted:</strong>
-                    <ul>
-                        <li>Numeric: "7-1", "8 2", "9-3"</li>
-                        <li>Named: "7-Andres", "8 - Antonio Luna", "9 Apolinario"</li>
-                    </ul>
+                <InfoBox type="important">
+                    <strong>Important:</strong> All records must be valid. If any record has errors, the entire upload will be rejected.
                 </InfoBox>
             );
-        }
-        return null;
-    };
-
-    // Get important note based on entity type
-    const getImportantNote = () => {
-        switch(entityType) {
-            case 'teacher':
-                return (
-                    <InfoBox type="important">
-                        <strong>Important:</strong> 
-                        <ul>
-                            <li>All teachers must have unique Employee IDs</li>
-                            <li>Grade-Sections must exist in the system (e.g., "7-Andres", "8-1")</li>
-                            <li>Subject codes must exist in the system (e.g., "MATH")</li>
-                            <li>If any record has errors, only that record will be skipped</li>
-                        </ul>
-                    </InfoBox>
-                );
-            case 'student':
-                return (
-                    <InfoBox type="important">
-                        <strong>Important:</strong> All records must be valid. If any record has errors, the entire upload will be rejected.
-                    </InfoBox>
-                );
-            case 'master-data':
-                return (
-                    <InfoBox type="important">
-                        <strong>Important:</strong> Use the template format. Master data includes Grades, Sections, Rooms, and Subjects.
-                    </InfoBox>
-                );
-            default:
-                return (
-                    <InfoBox type="important">
-                        <strong>Important:</strong> All records must be valid. If any record has errors, the entire upload will be rejected.
-                    </InfoBox>
-                );
+        } else {
+            // For teacher and master-data
+            return (
+                <InfoBox type="important">
+                    <strong>Important:</strong> All records must be valid. If any record has errors, the entire upload will be rejected.
+                </InfoBox>
+            );
         }
     };
 
@@ -349,7 +290,6 @@ function FileUploadModal({
                 </MessageModalLabel>
 
                 {getImportantNote()}
-                {getExtraInfo()}
                 
                 <p className={styles.templateLink}>
                     <a 
@@ -358,7 +298,7 @@ function FileUploadModal({
                         rel="noopener noreferrer"
                         className={styles.downloadLink}
                     >
-                        <strong>📥 Download {entityType} import template</strong>
+                        <strong>Download {entityType} import template</strong>
                     </a>
                 </p>
                 

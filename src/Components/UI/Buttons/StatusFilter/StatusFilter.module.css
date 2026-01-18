@@ -1,0 +1,48 @@
+/* StatusFilter.module.css */
+.statusFilter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filterLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.statusSelect {
+  padding: 10px 15px;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  background-color: white;
+  font-size: 14px;
+  color: #495057;
+  cursor: pointer;
+  min-width: 150px;
+  transition: all 0.2s;
+}
+
+.statusSelect:focus {
+  outline: none;
+  border-color: #4dabf7;
+  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+}
+
+/* Optional: Add color indicators to options */
+.statusSelect option[value="present"] {
+  color: #2b8a3e;
+}
+
+.statusSelect option[value="late"] {
+  color: #e67700;
+}
+
+.statusSelect option[value="absent"] {
+  color: #c92a2a;
+}
+
+.statusSelect option[value="all"] {
+  color: #495057;
+}

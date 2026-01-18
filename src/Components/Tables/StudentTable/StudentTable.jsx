@@ -13,8 +13,8 @@ import { faCircle as farCircle } from "@fortawesome/free-regular-svg-icons";
 import { faQrcode, faPenToSquare, faTrashCan, faCircle as fasCircle } from "@fortawesome/free-solid-svg-icons";
 import { useToast } from '../../Toast/ToastContext/ToastContext';
 import { useAuth } from '../../Authentication/AuthProvider/AuthProvider'; 
-import { useEntityEdit } from '../../hooks/useEntityEdit'; 
-import { useRowExpansion } from '../../hooks/useRowExpansion';
+import { useEntityEdit } from '../../Hooks/useEntityEdit'; 
+import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
 import { useStudentActions } from '../../Hooks/useEntityActions'; 
 import { StudentService } from '../../../Utils/EntityService'; 
 
@@ -168,12 +168,9 @@ const StudentTable = ({
   }, [students, currentClass, allUniqueSections]);
 
   const sectionsToShowInDropdown = useMemo(() => {
-    if (!selectedSection) {
-      return currentGradeSections;
-    } else {
-      return allUniqueSections;
-    }
-  }, [selectedSection, currentGradeSections, allUniqueSections]);
+  // Always show only sections for the current grade
+  return currentGradeSections;
+}, [currentGradeSections]);
 
   // Get available sections for the currently edited grade
   const availableSectionsForCurrentGrade = useMemo(() => {

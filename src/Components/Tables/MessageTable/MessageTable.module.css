@@ -1,35 +1,69 @@
-.messagesTable {
-  margin-top: 10px;
-  width: 1290px;
+/* MessageTable.module.css - Updated with Section Header Styles */
+
+.messageTableContainer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-table {
-  width: 1290px;
+.tableWrapper {
+  max-height: 59vh;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  width: 98%;
+}
+
+.tableWrapper table {
+  width: 100%;
   border-collapse: collapse;
+  margin: 0;
+  table-layout: auto;
+}
+
+.tableWrapper thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f2f2f2;
+  z-index: 10;
+  box-shadow: 0 1px 0 #e0e0e0;
 }
 
 th {
-  background-color: #f2f2f2;
   padding: 12px;
   text-align: center;
+  font-weight: bold;
 }
 
 td, th {
   text-align: center;
   padding: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-tbody tr:nth-child(odd) {
-  background-color: white;
+tbody tr {
+  margin: 0;
+  padding: 0;
+  border-spacing: 0;
 }
 
-tbody tr:nth-child(even) {
-  background-color: #f2f2f2;
+.rowEven {
+  background-color: white !important;
 }
 
-tbody tr:hover {
-  background-color: #8a8a8a;
+.rowOdd {
+  background-color: #f2f2f2 !important;
+}
+
+.studentRow:hover {
+  background-color: #8a8a8a !important;
   cursor: pointer;
+}
+
+.studentRow:hover td {
+  color: white;
 }
 
 .classContainers {
@@ -44,6 +78,54 @@ tbody tr:hover {
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   text-align: left;
   padding: 20px;
+  cursor: default;
+}
+
+.expandableCard {
+  max-height: 0;
+  padding: 0 20px;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  transform: scaleY(0.8);
+  transform-origin: top;
+}
+
+.expandRowActive .expandableCard {
+  max-height: 500px;
+  padding: 20px;
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.details {
+  display: flex;
+  flex-direction: row;
+  gap: 50px;
+}
+
+.expandRow {
+  height: 0;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.expandRowActive {
+  height: auto;
+  max-height: 500px;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.expandRow td {
+  padding: 0;
+  margin: 0;
+  border: none;
 }
 
 .messageHeader {
@@ -57,11 +139,7 @@ tbody tr:hover {
   margin: 4px 0;
 }
 
-.hiddenRow {
-  display: none;
-}
-
-.loading, .error, .noMessage{
+.loading, .error, .noMessage {
   text-align: center;
   padding: 20px;
   font-size: 16px;
@@ -74,6 +152,13 @@ tbody tr:hover {
   border-radius: 4px;
 }
 
+.noMessage {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  padding: 40px;
+}
+
 .tableInfo {
   display: flex;
   flex-direction: column;
@@ -84,4 +169,163 @@ tbody tr:hover {
   margin: 0;
   font-weight: bold;
   color: #003a02;
-} 
+}
+
+.icon {
+  font-size: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon svg {
+  transition: color 0.2s;
+  color: #6C757D;
+}
+
+.icon svg:hover {
+  color: white;
+}
+
+.recipientCell, .studentCell, .messageCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.messageCell {
+  gap: 5px;
+}
+
+.statusBadge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fullMessage {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+}
+
+.messageText {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.selectedRow {
+  background-color: #e3f2fd !important;
+}
+
+.selectedRow:hover {
+  background-color: #bbdefb !important;
+}
+
+/* SECTION HEADER STYLES - NEW */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.sectionHeader span {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.demoBadge {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  background-color: #ffc10720;
+  color: #ffc107;
+  border: 1px solid #ffc10750;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.demoIndicator {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #ffc107;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .details {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Allow horizontal scroll only on mobile */
+  .messageTableContainer {
+    overflow-x: auto;
+  }
+}
+
+/* Column widths for 6 columns */
+.tableWrapper table th:nth-child(1),
+.tableWrapper table td:nth-child(1) {
+  width: 20%;
+  min-width: 150px;
+}
+
+.tableWrapper table th:nth-child(2),
+.tableWrapper table td:nth-child(2) {
+  width: 20%;
+  min-width: 150px;
+}
+
+.tableWrapper table th:nth-child(3),
+.tableWrapper table td:nth-child(3) {
+  width: 10%;
+  min-width: 80px;
+}
+
+.tableWrapper table th:nth-child(4),
+.tableWrapper table td:nth-child(4) {
+  width: 10%;
+  min-width: 80px;
+}
+
+.tableWrapper table th:nth-child(5),
+.tableWrapper table td:nth-child(5) {
+  width: 25%;
+  min-width: 200px;
+}
+
+.tableWrapper table th:nth-child(6),
+.tableWrapper table td:nth-child(6) {
+  width: 15%;
+  min-width: 150px;
+}
+
+@media (max-width: 768px) {
+  .sectionHeaderRow {
+    flex-direction: column;
+    gap: 5px;
+  }
+}

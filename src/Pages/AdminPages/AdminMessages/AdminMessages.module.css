@@ -1,5 +1,92 @@
-.main{
-    display: flex;
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.searchAndFilter {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+  flex: 1;
+  min-width: 100%;
+  flex-wrap: wrap;
+}
+
+.searchContainer {
+  flex: 1;
+  min-width: 100px;
+  max-width: 350px;
+}
+
+.filtersContainer {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  flex: 2;
+  justify-content: flex-start;
+}
+
+/* Adjust the DateSelector and StatusFilter to fit better */
+.filtersContainer .dateSelector {
+  min-width: 250px;
+}
+
+.filtersContainer .statusFilter {
+  min-width: 180px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .searchAndFilter {
     flex-direction: column;
-    gap: 25px;
+    align-items: stretch;
+    gap: 15px;
+  }
+  
+  .searchContainer {
+    max-width: 100%;
+  }
+  
+  .filtersContainer {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 768px) {
+  .filtersContainer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .filtersContainer .dateSelector,
+  .filtersContainer .statusFilter {
+    width: 100%;
+    min-width: 100%;
+  }
+  
+  .filtersContainer .dateSelector .dateSelectorInner {
+    justify-content: space-between;
+  }
+  
+  .filtersContainer .statusFilter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .filtersContainer .statusFilter .filterLabel {
+    min-width: 70px;
+  }
 }

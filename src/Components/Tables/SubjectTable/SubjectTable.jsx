@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styles from './SubjectTable.module.css';
 import { EntityService } from '../../../Utils/EntityService';
-import { useRowExpansion } from '../../hooks/useRowExpansion';
-import { useEntityEdit } from '../../hooks/useEntityEdit';
+import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
+import { useEntityEdit } from '../../Hooks/useEntityEdit'; 
 import DeleteEntityModal from '../../Modals/DeleteEntityModal/DeleteEntityModal';
 import { useToast } from '../../Toast/ToastContext/ToastContext';
 import { supabase } from '../../../lib/supabase';

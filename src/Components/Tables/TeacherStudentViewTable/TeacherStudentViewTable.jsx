@@ -4,11 +4,13 @@ import { sortEntities } from '../../../Utils/SortEntities';
 import styles from './TeacherStudentViewTable.module.css';
 import { supabase } from '../../../lib/supabase';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faImage } from '@fortawesome/free-solid-svg-icons';
+import { faImage, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../Authentication/AuthProvider/AuthProvider';
-import { useRowExpansion } from '../../hooks/useRowExpansion';
+import { useRowExpansion } from '../../Hooks/useRowExpansion';
 import Input from '../../UI/Input/Input';
 import Button from '../../UI/Buttons/Button/Button';
+import ReportGenerationModal from '../../Modals/ReportGenerationModal/ReportGenerationModal';
+import StudentReportModal from '../../Modals/StudentReportModal/StudentReportModal';
 
 const TeacherStudentViewTable = () => {
   const [students, setStudents] = useState([]);
@@ -18,6 +20,11 @@ const TeacherStudentViewTable = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
+  
+  // Modal states
+  const [showReportGeneration, setShowReportGeneration] = useState(false);
+  const [showStudentReport, setShowStudentReport] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   
   const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
 
@@ -280,9 +287,10 @@ const TeacherStudentViewTable = () => {
     );
   }, [sortedStudents, searchTerm]);
 
-  const handleGenerateReport = (studentId, studentName, e) => {
+  const handleViewReport = (student, e) => {
     e.stopPropagation();
-    alert(`Generating report for ${studentName} (ID: ${studentId}) from class ${currentClass}`);
+    setSelectedStudent(student);
+    setShowStudentReport(true);
   };
 
   const handleClassChange = (className) => {
@@ -395,12 +403,23 @@ const TeacherStudentViewTable = () => {
   return (
     <div className={styles.teacherStudentView} ref={tableRef}>
       <div className={styles.searchContainer}>
-        <Input
-          placeholder="Search students..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          search={true}
-        />
+        <div className={styles.searchRow}>
+          <Input
+            placeholder="Search students..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            search={true}
+          />
+          <Button
+            icon={<FontAwesomeIcon icon={faCalendarAlt} />}
+            label="Configure Reports"
+            onClick={() => setShowReportGeneration(true)}
+            color="success"
+            height="sm"
+            width="auto"
+            title="Configure school days and attendance reports"
+          />
+        </div>
       </div>
 
       <div className={styles.classContainers}>
@@ -431,7 +450,7 @@ const TeacherStudentViewTable = () => {
               <th>NAME</th>
               <th>SECTION</th>
               <th>EMAIL</th>
-              <th>GENERATE</th>
+              <th>REPORTS</th>
             </tr>
           </thead>
           <tbody>
@@ -467,8 +486,8 @@ const TeacherStudentViewTable = () => {
                           <div className={styles.reportButtonContainer}>
                             <button 
                               className={styles.reportButton}
-                              onClick={(e) => handleGenerateReport(student.id, formatStudentName(student), e)}
-                              title="Generate attendance report"
+                              onClick={(e) => handleViewReport(student, e)}
+                              title="View attendance reports"
                             >
                               <FontAwesomeIcon icon={faImage} />
                             </button>
@@ -484,6 +503,20 @@ const TeacherStudentViewTable = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Modals */}
+      <ReportGenerationModal
+        isOpen={showReportGeneration}
+        onClose={() => setShowReportGeneration(false)}
+        currentClass={currentClass}
+      />
+
+      <StudentReportModal
+        isOpen={showStudentReport}
+        onClose={() => setShowStudentReport(false)}
+        student={selectedStudent}
+        currentClass={currentClass}
+      />
     </div>
   );
 };
