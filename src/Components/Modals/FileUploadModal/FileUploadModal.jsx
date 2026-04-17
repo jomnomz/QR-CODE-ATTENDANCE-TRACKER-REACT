@@ -11,7 +11,7 @@ import InfoBox from '../../UI/InfoBoxes/InfoBox/InfoBox.jsx';
 function FileUploadModal({ 
   isOpen, 
   onClose, 
-  entityType = 'student', // 'student', 'teacher', or 'master-data'
+  entityType = 'student', 
   onUploadSuccess 
 }) {
     const [file, setFile] = useState(null);
@@ -93,15 +93,11 @@ function FileUploadModal({
         }
     };
 
-    // Get description based on entity type - UPDATED
     const getDescription = () => {
-        // UPDATED: Same message for all entity types
         return 'Upload an Excel or CSV file with the provided template below';
     };
 
-    // Get template link - FIXED to use relative path
     const getFieldMappingLink = () => {
-        // Using relative paths from public folder
         switch(entityType) {
             case 'teacher':
                 return '/templates/teacher-import-template.xlsx';
@@ -114,9 +110,7 @@ function FileUploadModal({
         }
     };
 
-    // Get important note based on entity type - UPDATED
     const getImportantNote = () => {
-        // UPDATED: Same message for teacher and master-data, different for student
         if (entityType === 'student') {
             return (
                 <InfoBox type="important">
@@ -124,7 +118,6 @@ function FileUploadModal({
                 </InfoBox>
             );
         } else {
-            // For teacher and master-data
             return (
                 <InfoBox type="important">
                     <strong>Important:</strong> All records must be valid. If any record has errors, the entire upload will be rejected.
@@ -169,14 +162,12 @@ function FileUploadModal({
             console.log('✅ Upload response:', response.data);
             
             if (response.data.success) {
-                // Show detailed success message
                 if (response.data.message) {
                     success(response.data.message);
                 } else {
                     success('Upload completed successfully');
                 }
                 
-                // Show assignment summary if available
                 if (entityType === 'teacher' && response.data.summary) {
                     const summary = response.data.summary;
                     const assignmentMsg = [];
@@ -198,7 +189,6 @@ function FileUploadModal({
                         info(`Assignments: ${assignmentMsg.join(', ')}`);
                     }
                     
-                    // Show assignment errors if any
                     if (response.data.assignmentErrors && response.data.assignmentErrors.length > 0) {
                         console.warn('Assignment errors:', response.data.assignmentErrors);
                         response.data.assignmentErrors.forEach(err => {
@@ -207,7 +197,6 @@ function FileUploadModal({
                     }
                 }
                 
-                // Call the callback to refresh entities
                 if (onUploadSuccess) {
                     let newEntities = [];
                     if (entityType === 'teacher' && response.data.newTeachers) {
@@ -226,19 +215,16 @@ function FileUploadModal({
                 onClose();  
                 resetFileUpload();
             } else {
-                // Handle validation errors
                 if (response.data.invalidRecords && response.data.invalidRecords.length > 0) {
                     const errorCount = response.data.invalidCount || response.data.invalidRecords.length;
                     error(`${errorCount} record(s) have validation errors`);
                     
-                    // Show first few errors
                     if (response.data.errorSummary && response.data.errorSummary.length > 0) {
                         response.data.errorSummary.forEach(err => {
                             warning(err);
                         });
                     }
                     
-                    // Show summary
                     if (response.data.summary) {
                         info(`${response.data.summary.validRecords} valid, ${response.data.summary.invalidRecords} invalid`);
                     }
@@ -253,7 +239,6 @@ function FileUploadModal({
             if (err.response?.data?.error) {
                 error(err.response.data.error);
                 
-                // Show detailed errors if available
                 if (err.response.data.invalidRecords) {
                     err.response.data.invalidRecords.slice(0, 3).forEach(record => {
                         const errorMsg = Object.values(record.errors || {}).join(', ');
@@ -261,7 +246,6 @@ function FileUploadModal({
                     });
                 }
                 
-                // Show error summary
                 if (err.response.data.errorSummary) {
                     err.response.data.errorSummary.slice(0, 3).forEach(errMsg => {
                         warning(errMsg);
@@ -347,6 +331,7 @@ function FileUploadModal({
                         onClick={handleUpload}
                         disabled={!file || isUploading}
                         label={isUploading ? 'Uploading...' : 'Submit'}
+                        color="success"
                     />
                 </div>
             </div>

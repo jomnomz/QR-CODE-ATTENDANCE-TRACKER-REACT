@@ -9,7 +9,7 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
     late: { labels: [], data: [] },
     absent: { labels: [], data: [] },
     totalStudents: { labels: [], data: [] },
-    hasRecords: [] // Track which days have attendance records
+    hasRecords: [] 
   });
   const [overallStats, setOverallStats] = useState({
     present: 0,
@@ -23,14 +23,12 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Get current Philippine date in YYYY-MM-DD format
   const getPhilippinesDate = () => {
     const now = new Date();
     const phTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
     return phTime.toISOString().split('T')[0];
   };
 
-  // Get last 5 days including today (Philippine time)
   const getLast5Days = () => {
     const dates = [];
     const today = new Date();
@@ -39,8 +37,7 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
     for (let i = 4; i >= 0; i--) {
       const date = new Date(phToday);
       date.setDate(date.getDate() - i);
-      // Format as YYYY-MM-DD
-      const phDate = new Date(date.getTime() - (8 * 60 * 60 * 1000)); // Convert back to UTC for database
+      const phDate = new Date(date.getTime() - (8 * 60 * 60 * 1000)); 
       dates.push(phDate.toISOString().split('T')[0]);
     }
     return dates;
@@ -89,9 +86,7 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
       let totalAbsent = 0;
       let totalStudents = 0;
 
-      // For each class the teacher handles
       for (const teacherClass of teacherClasses) {
-        // Get students in this section
         const { data: students, error: studentsError } = await supabase
           .from('students')
           .select('id, lrn')
@@ -103,7 +98,6 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
         const studentIds = students?.map(s => s.id) || [];
         const studentLRNs = students?.map(s => s.lrn) || [];
 
-        // TODAY'S ATTENDANCE FOR THIS CLASS
         let presentCount = 0;
         let lateCount = 0;
         let absentCount = 0;
@@ -124,19 +118,15 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
               else if (record.status === 'absent') absentCount++;
             });
             
-            // Students without attendance records are absent
             const attendedStudentIds = todayAttendance.map(a => a.student_id);
             absentCount += studentCount - attendedStudentIds.length;
           } else {
-            // No attendance records for today
             absentCount = studentCount;
           }
         } else {
-          // No students in this class
           absentCount = studentCount;
         }
 
-        // WEEKLY ATTENDANCE FOR THIS CLASS (for line chart)
         const simplifiedClassName = `${teacherClass.grade_level?.replace('Grade ', '') || ''}-${teacherClass.section_name || ''}`;
         
         const weeklyClassData = {
@@ -148,7 +138,6 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
         };
 
         if (studentIds.length > 0) {
-          // Get attendance for all 5 days for these students
           const { data: weeklyAttendance, error: weeklyError } = await supabase
             .from('attendance')
             .select('date, student_id, student_lrn, status')
@@ -157,7 +146,6 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
 
           if (weeklyError) throw weeklyError;
 
-          // Group attendance by date for faster lookup
           const attendanceByDate = {};
           if (weeklyAttendance) {
             weeklyAttendance.forEach(record => {
@@ -168,7 +156,6 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
             });
           }
 
-          // For each day in last 5 days
           last5Days.forEach((date, dayIndex) => {
             const dayRecords = attendanceByDate[date] || [];
             
@@ -187,25 +174,19 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
                 else if (record.status === 'absent') dayAbsent++;
               });
               
-              // Students without attendance records are absent
               dayAbsent += studentCount - attendedStudentIds.size;
               
-              // Mark this day as having records
               weeklyData.hasRecords[dayIndex] = true;
             } else {
-              // No attendance records for this day
-              // Check if this is today or a past date
               const recordDate = new Date(date + 'T00:00:00Z');
               const currentDate = new Date();
               const phCurrentDate = new Date(currentDate.getTime() + (8 * 60 * 60 * 1000));
               const recordDatePH = new Date(recordDate.getTime() + (8 * 60 * 60 * 1000));
               
-              // Compare dates in Philippine time
               const isPastOrToday = recordDatePH <= phCurrentDate;
               
               if (isPastOrToday && studentCount > 0) {
                 dayAbsent = studentCount;
-                // Even though there are no records, we know students are absent
                 weeklyData.hasRecords[dayIndex] = true;
               }
             }
@@ -216,7 +197,6 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
             weeklyClassData.totalStudents.push(studentCount);
           });
         } else {
-          // No students in this class
           last5Days.forEach((date, dayIndex) => {
             const recordDate = new Date(date + 'T00:00:00Z');
             const currentDate = new Date();
@@ -236,7 +216,6 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
           });
         }
 
-        // Add to weekly data for charts
         weeklyData.present.labels.push(weeklyClassData.className);
         weeklyData.present.data.push(weeklyClassData.present);
         weeklyData.late.labels.push(weeklyClassData.className);
@@ -247,7 +226,6 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
         weeklyData.totalStudents.labels.push(weeklyClassData.className);
         weeklyData.totalStudents.data.push(weeklyClassData.totalStudents);
 
-        // Add to class stats for bar chart
         classStatsData.push({
           id: teacherClass.id,
           className: simplifiedClassName,
@@ -257,14 +235,12 @@ export const useTeacherClassAttendance = (teacherId, teacherClasses) => {
           total: studentCount
         });
 
-        // Add to overall totals for pie chart
         totalPresent += presentCount;
         totalLate += lateCount;
         totalAbsent += absentCount;
         totalStudents += studentCount;
       }
 
-      // Calculate overall percentages
       const presentPercent = totalStudents > 0 ? Math.round((totalPresent / totalStudents) * 100) : 0;
       const latePercent = totalStudents > 0 ? Math.round((totalLate / totalStudents) * 100) : 0;
       const absentPercent = totalStudents > 0 ? Math.round((totalAbsent / totalStudents) * 100) : 0;

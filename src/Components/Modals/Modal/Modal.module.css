@@ -24,7 +24,6 @@
   justify-content: flex-end;
 }
 
-/* Background animations */
 .backgroundEnter {
   animation: fadeIn 0.3s ease-out forwards;
 }
@@ -33,7 +32,6 @@
   animation: fadeOut 0.2s ease-in forwards;
 }
 
-/* Modal animations */
 .modalEnter {
   animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
@@ -43,14 +41,13 @@
 }
 
 .modalContent {
-  height: 100% !important; /* Force full height */
+  height: 100% !important;
   max-height: 100% !important;
   display: flex;
   flex-direction: column;
   overflow: hidden !important;
-  padding: 0 !important; /* Remove padding to maximize space */
+  padding: 0 !important; 
 }
-/* Keyframes for background */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -69,7 +66,6 @@
   }
 }
 
-/* Keyframes for modal */
 @keyframes scaleIn {
   from {
     opacity: 0;
@@ -92,7 +88,6 @@
   }
 }
 
-/* Optional: Add a subtle bounce effect on enter */
 @keyframes scaleInBounce {
   0% {
     opacity: 0;
@@ -111,7 +106,6 @@
   }
 }
 
-/* If you prefer a slide-up animation instead of scale, use this: */
 @keyframes slideIn {
   from {
     opacity: 0;

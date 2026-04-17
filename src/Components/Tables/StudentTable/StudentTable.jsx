@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { grades, shouldHandleRowClick } from '../../../Utils/tableHelpers';
+import { grades, shouldHandleRowClick } from '../../../Utils/TableHelpers';
 import { sortStudents } from '../../../Utils/SortEntities'; 
 import { compareSections } from '../../../Utils/CompareHelpers'; 
 import { formatStudentName, formatNA } from '../../../Utils/Formatters';
@@ -90,7 +90,6 @@ const StudentTable = ({
 
   const studentService = useMemo(() => new StudentService(), []);
 
-  // Initialize students from parent props
   useEffect(() => {
     if (propStudents && propStudents.length > 0) {
       console.log('📊 Initializing students from parent:', propStudents.length);
@@ -102,26 +101,22 @@ const StudentTable = ({
     }
   }, [propStudents, parentLoading]);
 
-  // Update students when parent data changes
   useEffect(() => {
     if (propStudents && propStudents.length >= 0) {
       setStudents(propStudents);
     }
   }, [propStudents]);
 
-  // Get sections for each grade from props
   useEffect(() => {
     if (sectionsData.length > 0 && gradesData.length > 0) {
       console.log('📋 Building grade-sections map from props...');
       const map = {};
       
-      // Create a map of grade_id to grade_level (just numbers now)
       const gradeIdToLevel = {};
       gradesData.forEach(grade => {
         gradeIdToLevel[grade.id] = grade.grade_level; // Just "7", "8", etc.
       });
       
-      // Build the sections map
       sectionsData.forEach(section => {
         const gradeLevel = gradeIdToLevel[section.grade_id];
         if (gradeLevel) {
@@ -132,7 +127,6 @@ const StudentTable = ({
         }
       });
       
-      // Sort sections
       Object.keys(map).forEach(grade => {
         map[grade] = map[grade].sort(compareSections);
       });
@@ -142,7 +136,6 @@ const StudentTable = ({
     }
   }, [gradesData, sectionsData]);
 
-  // Get unique sections from current students
   const allUniqueSections = useMemo(() => {
     const sections = students
       .map(student => student.section || '')
@@ -168,11 +161,9 @@ const StudentTable = ({
   }, [students, currentClass, allUniqueSections]);
 
   const sectionsToShowInDropdown = useMemo(() => {
-  // Always show only sections for the current grade
   return currentGradeSections;
 }, [currentGradeSections]);
 
-  // Get available sections for the currently edited grade
   const availableSectionsForCurrentGrade = useMemo(() => {
     if (!editFormData.grade) return [];
     
@@ -195,7 +186,6 @@ const StudentTable = ({
   const filteredStudents = useMemo(() => {
     let filtered = students;
     
-    // Apply grade filter first
     if (currentClass !== 'all') {
       filtered = filtered.filter(student => {
         const studentGrade = student.grade || '';
@@ -203,12 +193,10 @@ const StudentTable = ({
       });
     }
       
-    // Apply section filter second
     if (selectedSection) {
       filtered = filtered.filter(student => student.section === selectedSection);
     }
     
-    // Apply search filter last
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(student => 
@@ -284,7 +272,7 @@ const StudentTable = ({
     
     const studentForEdit = {
       ...student,
-      grade: student.grade, // Should be just "7", "8", etc.
+      grade: student.grade, 
       section: student.section
     };
     
@@ -303,11 +291,9 @@ const StudentTable = ({
   if (name === 'grade') {
     const gradeSections = gradeSectionsMap[value] || [];
     
-    // Keep the current section if it's valid for the new grade
     if (editFormData.section && gradeSections.includes(editFormData.section)) {
       updateEditField(name, value);
     } else {
-      // Auto-select the first section for the new grade
       const firstSection = gradeSections.length > 0 ? gradeSections[0] : '';
       updateEditField('section', firstSection);
       updateEditField(name, value);
@@ -347,9 +333,7 @@ const StudentTable = ({
         section: editFormData.section
       });
       
-      // Find grade_id from grades table
       if (editFormData.grade) {
-        // Find grade by exact match (just "7", "8", etc.)
         const grade = gradesData.find(g => g.grade_level === editFormData.grade);
         
         if (grade) {
@@ -361,7 +345,6 @@ const StudentTable = ({
         }
       }
       
-      // Find section_id from sections table
       if (editFormData.section && gradeId) {
         const sectionsForGrade = sectionsData.filter(s => s.grade_id === gradeId);
         console.log('📋 Sections for grade_id', gradeId, ':', sectionsForGrade);
@@ -899,11 +882,9 @@ const StudentTable = ({
 
       return (
         <React.Fragment key={student.id}>
-          {/* Only show regular row if NOT expanded */}
           {!isRowExpanded(student.id) && (
             renderRegularRow(student, rowColorClass, visibleRowIndex, isSelected)
           )}
-          {/* Always render expanded row (it will be hidden if not active) */}
           {renderExpandedRow(student)}
         </React.Fragment>
       );

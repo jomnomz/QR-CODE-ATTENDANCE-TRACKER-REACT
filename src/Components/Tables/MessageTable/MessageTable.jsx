@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Button from '../../UI/Buttons/Button/Button';
 import styles from './MessageTable.module.css';
 import { supabase } from '../../../lib/supabase';
-import { useRowExpansion } from '../../Hooks/useRowExpansion';
 import SectionDropdown from '../../UI/Buttons/SectionDropdown/SectionDropdown';
 
 const MessageTable = ({
@@ -13,18 +12,42 @@ const MessageTable = ({
   onSectionSelect,
   availableSections = [],
   loading: parentLoading = false,
-  selectedDate = '', // Date filter from parent
+  selectedDate = '',
 }) => {
   const [currentClass, setCurrentClass] = useState('all');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [availableSectionsLocal, setAvailableSectionsLocal] = useState([]);
+  const [expandedRows, setExpandedRows] = useState(new Set());
 
-  // Use the row expansion hook
-  const { expandedRow, tableRef, toggleRow, isRowExpanded } = useRowExpansion();
+  // Get today's date in Philippine time (UTC+8)
+  const getTodayPhilippines = () => {
+    const now = new Date();
+    // Convert to Philippine time (UTC+8)
+    const phTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    // Format as YYYY-MM-DD for database query
+    return phTime.toISOString().split('T')[0];
+  };
 
-  // Get unique sections from current messages
+  // Get date for display
+  const getTodayDisplay = () => {
+    const today = getTodayPhilippines();
+    const dateObj = new Date(today + 'T00:00:00Z');
+    const phDate = new Date(dateObj.getTime() + (8 * 60 * 60 * 1000));
+    return phDate.toLocaleDateString('en-PH', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Check if a date is today
+  const isDateToday = (dateString) => {
+    const today = getTodayPhilippines();
+    return dateString === today;
+  };
+
   const allUniqueSections = useMemo(() => {
     const sections = messages
       .map(message => message.section || '')
@@ -35,7 +58,6 @@ const MessageTable = ({
     return sorted;
   }, [messages]);
 
-  // Get sections for current grade
   const currentGradeSections = useMemo(() => {
     if (currentClass === 'all') {
       return allUniqueSections;
@@ -50,7 +72,6 @@ const MessageTable = ({
     return uniqueSections.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [messages, currentClass, allUniqueSections]);
 
-  // Update available sections based on current grade
   useEffect(() => {
     setAvailableSectionsLocal(currentGradeSections);
     if (onSectionsUpdate) {
@@ -98,7 +119,6 @@ const MessageTable = ({
     return phone;
   };
 
-  // Helper function to get guardian full name
   const getGuardianName = (student) => {
     if (!student) return 'N/A';
     
@@ -121,22 +141,7 @@ const MessageTable = ({
         .from('sms_logs')
         .select(`
           *,
-          student_by_id:students!sms_logs_student_id_fkey (
-            id,
-            lrn,
-            first_name,
-            last_name,
-            grade_id,
-            section_id,
-            grade:grades(grade_level),
-            section:sections(section_name),
-            guardian_first_name,
-            guardian_middle_name,
-            guardian_last_name,
-            guardian_phone_number,
-            guardian_email
-          ),
-          student_by_lrn:students!sms_logs_student_lrn_fkey (
+          student:students!sms_logs_student_id_fkey (
             id,
             lrn,
             first_name,
@@ -154,23 +159,29 @@ const MessageTable = ({
         `)
         .order('sent_at', { ascending: false });
 
-      // Apply date filter if provided
-      if (dateFilter) {
-        query = query.gte('sent_at', `${dateFilter}T00:00:00.000Z`)
-                   .lt('sent_at', `${dateFilter}T23:59:59.999Z`);
-        console.log(`📅 Filtering by date: ${dateFilter}`);
-      }
+      // If no date is selected, default to today
+      const targetDate = dateFilter || getTodayPhilippines();
+      console.log(`📅 Fetching logs for date: ${targetDate}`);
+      
+      // Query for the specific date (from 00:00 to 23:59 in Philippine time)
+      // Convert to UTC for database query
+      const startDate = new Date(`${targetDate}T00:00:00.000+08:00`);
+      const endDate = new Date(`${targetDate}T23:59:59.999+08:00`);
+      
+      query = query
+        .gte('sent_at', startDate.toISOString())
+        .lt('sent_at', endDate.toISOString());
 
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
-      console.log(`✅ Loaded ${data?.length || 0} SMS logs`);
-
+      console.log(`✅ Loaded ${data?.length || 0} SMS logs for ${targetDate}`);
+      
       const transformedMessages = (data || []).map(log => {
-        const student = log.student_by_id || log.student_by_lrn;
+        const student = log.student;
         
-        // Get guardian name from student data
+        // Get guardian info - prioritize student's guardian info, fall back to log data
         const guardianName = student ? getGuardianName(student) : (log.guardian_name || 'N/A');
         const guardianPhone = student?.guardian_phone_number || log.phone_number || 'N/A';
         const formattedPhone = formatPhoneNumber(guardianPhone);
@@ -201,11 +212,16 @@ const MessageTable = ({
           demo_mode: isDemo,
           date_time: formatDateTimeLocal(log.sent_at),
           raw_sent_at: log.sent_at,
-          created_at: log.created_at
+          created_at: log.created_at,
+          log_date: new Date(log.sent_at).toISOString().split('T')[0],
+          // Keep the student object for debugging
+          _student: student
         };
       });
 
-      setMessages(transformedMessages); // Store ALL messages regardless of grade
+      console.log('📈 Transformed messages count:', transformedMessages.length);
+      
+      setMessages(transformedMessages);
       
     } catch (err) {
       setError(err.message);
@@ -215,26 +231,22 @@ const MessageTable = ({
     }
   };
 
-  // Fetch logs when date changes OR on initial mount
   useEffect(() => {
+    // Fetch messages for today by default, or for selectedDate if provided
     fetchSMSLogs('all', selectedDate);
-  }, [selectedDate]); // Only re-fetch when selectedDate changes
+  }, [selectedDate]);
 
-  // Filter messages by grade, section, and search term
   const filteredMessages = useMemo(() => {
     let filtered = messages;
     
-    // Apply grade filter
     if (currentClass !== 'all') {
       filtered = filtered.filter(message => message.grade === currentClass);
     }
     
-    // Apply section filter
     if (selectedSection) {
       filtered = filtered.filter(message => message.section === selectedSection);
     }
     
-    // Apply search filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(message => 
@@ -253,6 +265,7 @@ const MessageTable = ({
       );
     }
     
+    console.log('🔍 Filtered messages count:', filtered.length);
     return filtered;
   }, [messages, currentClass, selectedSection, searchTerm]);
 
@@ -264,33 +277,35 @@ const MessageTable = ({
     if (onGradeUpdate) {
       onGradeUpdate(className);
     }
-    toggleRow(null);
+    setExpandedRows(new Set());
   };
 
-  const handleRowClick = (messageId, e) => {
-    toggleRow(messageId);
+  const toggleRow = (messageId) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(messageId)) {
+      newExpandedRows.delete(messageId);
+    } else {
+      newExpandedRows.add(messageId);
+    }
+    setExpandedRows(newExpandedRows);
+  };
+
+  const isRowExpanded = (messageId) => {
+    return expandedRows.has(messageId);
   };
 
   const handleSectionFilter = (section) => {
     if (onSectionSelect) {
       onSectionSelect(section);
     }
+    setExpandedRows(new Set());
   };
 
   const getTableInfoMessage = () => {
     const messageCount = filteredMessages.length;
-    const totalMessageCount = messages.length;
     
-    let message = '';
-    
-    if (currentClass === 'all') {
-      message = `Showing ${messageCount} of ${totalMessageCount} SMS message/s`;
-    } else {
-      message = `Showing ${messageCount} SMS message/s in Grade ${currentClass}`;
-    }
-    
-    // Add date filter info
     if (selectedDate) {
+      // If a specific date is selected
       const dateObj = new Date(selectedDate + 'T00:00:00Z');
       const phDate = new Date(dateObj.getTime() + (8 * 60 * 60 * 1000));
       const formattedDate = phDate.toLocaleDateString('en-PH', {
@@ -298,32 +313,59 @@ const MessageTable = ({
         day: 'numeric',
         year: 'numeric'
       });
-      message += ` on ${formattedDate}`;
+      
+      if (messageCount === 0) {
+        return `No SMS messages found on ${formattedDate}`;
+      }
+      
+      let message = `Showing ${messageCount} SMS message/s on ${formattedDate}`;
+      
+      if (currentClass !== 'all') {
+        message += ` in Grade ${currentClass}`;
+      }
+      
+      if (selectedSection) {
+        message += `, Section ${selectedSection}`;
+      }
+      
+      if (searchTerm.trim()) {
+        message += ` matching "${searchTerm}"`;
+      }
+      
+      return message;
+    } else {
+      // Default (today)
+      const todayDisplay = getTodayDisplay();
+      
+      if (messageCount === 0) {
+        return `No SMS messages sent today (${todayDisplay})`;
+      }
+      
+      let message = `Showing ${messageCount} SMS message/s today (${todayDisplay})`;
+      
+      if (currentClass !== 'all') {
+        message += ` in Grade ${currentClass}`;
+      }
+      
+      if (selectedSection) {
+        message += `, Section ${selectedSection}`;
+      }
+      
+      if (searchTerm.trim()) {
+        message += ` matching "${searchTerm}"`;
+      }
+      
+      return message;
     }
-    
-    // Add section filter info
-    if (selectedSection) {
-      message += `, Section ${selectedSection}`;
-    }
-    
-    // Add search info
-    if (searchTerm.trim()) {
-      message += ` matching "${searchTerm}"`;
-    }
-    
-    return message;
   };
 
   const renderExpandedRow = (message) => {
     const isDemo = message.demo_mode;
     
     return (
-      <tr className={`${styles.expandRow} ${isRowExpanded(message.id) ? styles.expandRowActive : ''}`}>
+      <tr className={`${styles.expandRow} ${isRowExpanded(message.id) ? styles.expandRowVisible : ''}`}>
         <td colSpan="6">
-          <div 
-            className={`${styles.messageCard} ${styles.expandableCard}`}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className={`${styles.messageCard} ${styles.expandableCard}`}>
             <div className={styles.messageHeader}>
               SMS Message Details
             </div>
@@ -373,7 +415,6 @@ const MessageTable = ({
                   Scan Type: {message.scan_type.toUpperCase()}
                 </div>
                 
-                {/* Show demo indicator if it's a demo message */}
                 {isDemo && (
                   <div className={styles.messageInfo}>
                     <span style={{ color: '#666', fontStyle: 'italic' }}>
@@ -382,7 +423,6 @@ const MessageTable = ({
                   </div>
                 )}
                 
-                {/* Only show provider info if not demo */}
                 {!isDemo && (
                   <>
                     <div className={styles.messageInfo}>
@@ -394,11 +434,10 @@ const MessageTable = ({
                   </>
                 )}
                 
-                {/* Only show reason if it's not a demo message */}
                 {message.reason !== 'N/A' && !isDemo && (
                   <div className={styles.messageInfo}>
                     Reason: {message.reason}
-                  </div>
+                    </div>
                 )}
               </div>
             </div>
@@ -417,15 +456,16 @@ const MessageTable = ({
     );
   };
 
-  const renderRegularRow = (message, rowColorClass, visibleRowIndex) => {
+  const renderRegularRow = (message, rowColorClass, index) => {
     const truncatedMessage = message.message.length > 50 
       ? `${message.message.substring(0, 50)}...` 
       : message.message;
+    const expanded = isRowExpanded(message.id);
 
     return (
       <tr 
-        className={`${styles.studentRow} ${rowColorClass}`}
-        onClick={(e) => handleRowClick(message.id, e)}
+        className={`${styles.studentRow} ${rowColorClass} ${expanded ? styles.rowExpanded : ''}`}
+        onClick={() => toggleRow(message.id)}
       >
         <td>
           <div className={styles.guardianCell}>
@@ -470,7 +510,7 @@ const MessageTable = ({
   }
 
   return (
-    <div className={styles.messageTableContainer} ref={tableRef}>
+    <div className={styles.messageTableContainer}>
       <div className={styles.messageTable}>
         <div className={styles.classContainers}>
           {grades.map(grade => (
@@ -490,6 +530,11 @@ const MessageTable = ({
 
           <div className={styles.tableInfo}>
             <p>{getTableInfoMessage()}</p>
+            {!selectedDate && (
+              <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+                Showing today's messages only. Use date picker to view older messages.
+              </small>
+            )}
           </div>
         </div>
 
@@ -526,13 +571,14 @@ const MessageTable = ({
               ) : (
                 filteredMessages.map((message, index) => {
                   const rowColorClass = index % 2 === 0 ? styles.rowEven : styles.rowOdd;
+                  const expanded = isRowExpanded(message.id);
                   
                   return (
-                    <React.Fragment key={message.id}>
-                      {!isRowExpanded(message.id) && (
-                        renderRegularRow(message, rowColorClass, index)
-                      )}
-                      {renderExpandedRow(message)}
+                    <React.Fragment key={`${message.id}-${index}`}>
+                      {/* Regular row - always visible */}
+                      {renderRegularRow(message, rowColorClass, index)}
+                      {/* Expanded row - only when expanded */}
+                      {expanded && renderExpandedRow(message)}
                     </React.Fragment>
                   );
                 })

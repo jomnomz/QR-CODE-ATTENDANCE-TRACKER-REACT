@@ -72,13 +72,12 @@ const formatPhoneFieldsForDatabase = (student) => {
 
 const findGradeAndSectionIds = async (gradeText, sectionText) => {
   try {
-    // Clean grade - just get the number
     let gradeLevel = gradeText.toString().trim();
     const numMatch = gradeLevel.match(/\d+/);
     if (numMatch) {
-      gradeLevel = numMatch[0]; // Just the number
+      gradeLevel = numMatch[0]; 
     } else {
-      gradeLevel = gradeLevel.replace(/\D/g, ''); // Remove non-digits
+      gradeLevel = gradeLevel.replace(/\D/g, ''); 
     }
     
     if (!gradeLevel) {
@@ -87,7 +86,6 @@ const findGradeAndSectionIds = async (gradeText, sectionText) => {
 
     console.log(`🔍 Looking for grade: "${gradeLevel}" and section: "${sectionText}"`);
     
-    // Find the grade
     const { data: gradeData, error: gradeError } = await supabase
       .from('grades')
       .select('id, grade_level')
@@ -99,9 +97,8 @@ const findGradeAndSectionIds = async (gradeText, sectionText) => {
     }
 
     const gradeId = gradeData.id;
-    const gradeDisplay = gradeData.grade_level; // e.g., "7" or "Grade 7"
+    const gradeDisplay = gradeData.grade_level; 
 
-    // Find the section for this grade
     const { data: sectionData, error: sectionError } = await supabase
       .from('sections')
       .select('id, section_name')
@@ -119,8 +116,8 @@ const findGradeAndSectionIds = async (gradeText, sectionText) => {
     return { 
       gradeId, 
       sectionId, 
-      gradeDisplay, // Return the grade text
-      sectionDisplay, // Return the section text
+      gradeDisplay, 
+      sectionDisplay, 
       error: null 
     };
   } catch (error) {
@@ -247,7 +244,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
     const duplicateLRNs = new Set();
     const lrnSet = new Set();
     
-    // First pass: validate data
     rawStudentData.forEach((student, index) => {
       const rowNumber = index + 2;
 
@@ -302,7 +298,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     }
 
-    // Second pass: find grade and section IDs for valid records
     console.log('🔍 Finding grade and section IDs for each student...');
     const studentsWithIds = [];
     const gradeSectionErrors = [];
@@ -323,7 +318,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
           ...student,
           grade_id: result.gradeId,
           section_id: result.sectionId,
-          // Keep original grade/section text values for display
           grade: result.gradeDisplay || student.grade,
           section: result.sectionDisplay || student.section
         });
@@ -351,7 +345,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       });
     }
 
-    // Check for existing LRNs
     const lrns = studentsWithIds.map(s => s.lrn).filter(lrn => lrn);
     const existingLRNs = [];
     
@@ -370,7 +363,6 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
       }
     }
 
-    // Prepare final student data for insertion - KEEP BOTH TEXT AND ID FIELDS
     const newStudents = studentsWithIds
       .filter(student => !existingLRNs.includes(student.lrn));
 

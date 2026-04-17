@@ -18,11 +18,9 @@ function EntityList({
     return null;
   }
 
-  // Helper function to format GradeSection display (for grade sections)
   const formatGradeSectionDisplay = (gradeSection) => {
     if (!gradeSection) return '';
     
-    // Check if gradeSection is already a formatted string or an object
     if (typeof gradeSection === 'string') {
       return gradeSection;
     }
@@ -47,7 +45,6 @@ function EntityList({
     return display;
   };
 
-  // Helper function to format Subject display
   const formatSubjectDisplay = (subject) => {
     if (!subject) return '';
     
@@ -69,7 +66,6 @@ function EntityList({
     return '';
   };
 
-  // Helper function to format GradeSchedule display
   const formatGradeScheduleDisplay = (schedule) => {
     if (!schedule) return '';
     
@@ -88,7 +84,6 @@ function EntityList({
     }
     
     if (startTime && endTime) {
-      // Format time from "HH:MM:SS" to AM/PM format
       const formatTime = (timeStr) => {
         if (!timeStr) return '';
         const [hours, minutes] = timeStr.split(':');
@@ -162,23 +157,19 @@ function EntityList({
         };
       
       default:
-        // Try to intelligently guess the structure
         if (entity.lrn) {
-          // Probably a student
           return {
             identifier: entity.lrn || '',
             name: formatStudentDisplayName(entity),
             details: formatGradeSection(entity)
           };
         } else if (entity.employee_id) {
-          // Probably a teacher
           return {
             identifier: entity.employee_id || '',
             name: formatTeacherDisplayName(entity),
             details: entity.email_address || 'NA'
           };
         } else if (entity.subject_code) {
-          // Probably a subject
           return {
             identifier: entity.subject_code || '',
             name: entity.subject_name || '',
@@ -186,21 +177,18 @@ function EntityList({
           };
         } else if (entity.grade || entity.grade_level) {
           if (entity.section || entity.section_name) {
-            // Probably a grade section
             return {
               identifier: `${entity.grade || entity.grade_level || ''}-${entity.section || entity.section_name || ''}`,
               name: formatGradeSectionDisplay(entity),
               details: entity.room && entity.room !== 'N/A' ? `Room ${entity.room}` : ''
             };
           } else if (entity.class_start || entity.class_end) {
-            // Probably a grade schedule
             return {
               identifier: `Grade ${entity.grade || entity.grade_level || ''} Schedule`,
               name: formatGradeScheduleDisplay(entity),
               details: entity.grace_period_minutes ? `${entity.grace_period_minutes} min grace period` : ''
             };
           } else {
-            // Probably just a grade
             return {
               identifier: `Grade ${entity.grade_level || entity.grade || ''}`,
               name: `Grade ${entity.grade_level || entity.grade || ''}`,
@@ -208,7 +196,6 @@ function EntityList({
             };
           }
         } else {
-          // Fallback - try to use common fields
           return { 
             identifier: entity.id || entity.code || '',
             name: entity.name || entity.title || entity.displayName || 'Unnamed Entity',
@@ -234,7 +221,6 @@ function EntityList({
     return `${title} (${entities.length} ${entityTypeText}${entities.length !== 1 ? 's' : ''}):`;
   };
 
-  // Helper to determine what to display for each entity type
   const getEntityDisplayText = (details) => {
     switch (entityType) {
       case 'student':

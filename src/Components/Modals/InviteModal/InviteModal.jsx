@@ -1,4 +1,3 @@
-// components/Teachers/InviteModal/InviteModal.jsx
 import { useState } from 'react';
 import Modal from '../Modal/Modal.jsx';
 import styles from './InviteModal.module.css';
@@ -12,9 +11,9 @@ import MessageModalLabel from '../../UI/Labels/MessageModalLabel/MessageModalLab
 function InviteModal({ 
   isOpen, 
   onClose, 
-  teacher, // For single invitation
-  selectedTeachers = [], // For bulk invitation
-  teacherData = [], // For bulk invitation to show names
+  teacher, 
+  selectedTeachers = [], 
+  teacherData = [], 
   onConfirm,
   onConfirmBulk
 }) {
@@ -24,22 +23,19 @@ function InviteModal({
   const isBulkInvite = selectedTeachers.length > 0;
   const inviteCount = isBulkInvite ? selectedTeachers.length : 1;
   
-  // Don't render anything if modal is not open OR if it's bulk invite but no teachers selected
   if (!isOpen) return null;
   if (!isBulkInvite && !teacher) return null;
 
-  // Filter out teachers who already have accounts or are already invited
   const filterEligibleTeachers = (teachers) => {
     return teachers.filter(t => {
-      if (!t.email_address) return false; // Skip teachers without email
-      if (t.status === 'active') return false; // Already have account
-      if (t.status === 'pending') return false; // Already invited
-      if (t.status === 'inactive') return false; // Account suspended
+      if (!t.email_address) return false; 
+      if (t.status === 'active') return false; 
+      if (t.status === 'pending') return false; 
+      if (t.status === 'inactive') return false; 
       return true;
     });
   };
 
-  // Get actual teacher objects from IDs
   const selectedTeacherObjects = isBulkInvite 
     ? selectedTeachers
         .map(teacherId => teacherData.find(t => t.id === teacherId))

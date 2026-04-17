@@ -252,7 +252,6 @@ export const useTeachers = () => {
             setTeachers(prevTeachers =>
               prevTeachers.filter(teacher => teacher.id !== payload.old.id)
             );
-            // Remove from assignments
             setTeacherAssignments(prev => {
               const newAssignments = { ...prev };
               delete newAssignments[payload.old.id];

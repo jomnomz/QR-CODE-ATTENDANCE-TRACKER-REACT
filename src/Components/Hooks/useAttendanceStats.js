@@ -27,14 +27,11 @@ export const useAttendanceStats = (teacherId, teacherSections) => {
     try {
       const today = getPhilippinesDate();
       
-      // If teacher sections are provided, filter by those sections
       let studentLRNs = [];
       
       if (teacherSections && teacherSections.length > 0) {
-        // Get section IDs from teacher sections
         const sectionIds = teacherSections.map(section => section.section_id);
         
-        // Get all students in these sections
         const { data: sectionStudents, error: studentsError } = await supabase
           .from('students')
           .select('lrn')
@@ -43,7 +40,6 @@ export const useAttendanceStats = (teacherId, teacherSections) => {
         if (studentsError) throw studentsError;
         
         if (!sectionStudents || sectionStudents.length === 0) {
-          // No students in teacher's sections
           setStats({
             present: 0,
             late: 0,
@@ -59,13 +55,11 @@ export const useAttendanceStats = (teacherId, teacherSections) => {
         studentLRNs = sectionStudents.map(student => student.lrn);
       }
       
-      // Build the attendance query
       let attendanceQuery = supabase
         .from('attendance')
         .select('status')
         .eq('date', today);
       
-      // If we have specific student LRNs, filter by them
       if (studentLRNs.length > 0) {
         attendanceQuery = attendanceQuery.in('student_lrn', studentLRNs);
       }
@@ -74,13 +68,11 @@ export const useAttendanceStats = (teacherId, teacherSections) => {
       
       if (attendanceError) throw attendanceError;
       
-      // Initialize counts
       let presentCount = 0;
       let lateCount = 0;
       let absentCount = 0;
       const total = attendanceRecords?.length || 0;
       
-      // Count statuses
       if (attendanceRecords && attendanceRecords.length > 0) {
         attendanceRecords.forEach(record => {
           if (record.status === 'present') presentCount++;
@@ -89,7 +81,6 @@ export const useAttendanceStats = (teacherId, teacherSections) => {
         });
       }
       
-      // Calculate percentages
       const presentPercent = total > 0 ? Math.round((presentCount / total) * 100) : 0;
       const latePercent = total > 0 ? Math.round((lateCount / total) * 100) : 0;
       const absentPercent = total > 0 ? Math.round((absentCount / total) * 100) : 0;
@@ -124,7 +115,6 @@ export const useAttendanceStats = (teacherId, teacherSections) => {
   useEffect(() => {
     fetchAttendanceStats();
     
-    // Subscribe to real-time updates
     const subscription = supabase
       .channel('attendance-pie-chart')
       .on(

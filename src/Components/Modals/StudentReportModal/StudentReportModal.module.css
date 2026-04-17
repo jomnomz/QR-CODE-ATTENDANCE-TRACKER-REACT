@@ -67,7 +67,6 @@
   font-size: 14px;
 }
 
-/* Updated summary cards - much smaller */
 .summaryCards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -116,7 +115,6 @@
   font-size: 14px;
 }
 
-/* Table headers and cells with center alignment */
 .tableHeader {
   background-color: #f1f5f9;
   padding: 10px 12px;
@@ -135,7 +133,6 @@
   text-align: center;
 }
 
-/* Only first column left-aligned */
 .tableHeader:first-child,
 .tableCell:first-child {
   text-align: left;
@@ -237,7 +234,6 @@
   }
 }
 
-/* Responsive adjustments */
 @media (max-width: 1200px) {
   .summaryCards {
     grid-template-columns: repeat(3, 1fr);

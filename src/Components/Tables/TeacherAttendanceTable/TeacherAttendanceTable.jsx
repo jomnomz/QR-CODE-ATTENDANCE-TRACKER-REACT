@@ -21,14 +21,12 @@ const TeacherAttendanceTable = ({
   const [availableDates, setAvailableDates] = useState([]);
   const [datesLoading, setDatesLoading] = useState(false);
 
-  // Get current Philippine date in YYYY-MM-DD format
   const getCurrentPhilippinesDate = useCallback(() => {
     const now = new Date();
     const phTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
     return phTime.toISOString().split('T')[0];
   }, []);
 
-  // Get Philippine date for display
   const getPhilippinesDisplayDate = useCallback(() => {
     const dateToUse = selectedDate || getCurrentPhilippinesDate();
     const date = new Date(dateToUse + 'T00:00:00Z');
@@ -41,17 +39,14 @@ const TeacherAttendanceTable = ({
     });
   }, [selectedDate, getCurrentPhilippinesDate]);
 
-  // Get current date for database queries (assuming dates in database are Philippine dates)
   const getCurrentDatabaseDate = useCallback(() => {
     if (selectedDate) {
       return selectedDate;
     }
     
-    // Return Philippine date for database query
     return getCurrentPhilippinesDate();
   }, [selectedDate, getCurrentPhilippinesDate]);
 
-  // Parse class name to extract grade and section
   const parseClassName = useCallback((className) => {
     if (!className) return { grade: null, section: null };
     
@@ -66,7 +61,6 @@ const TeacherAttendanceTable = ({
     return { grade: null, section: null };
   }, []);
 
-  // Find the correct section ID based on grade and section name
   const findSectionId = useCallback(async (grade, sectionName) => {
     try {
       // Get grade ID first
@@ -81,7 +75,6 @@ const TeacherAttendanceTable = ({
         return null;
       }
 
-      // Get section ID using grade_id AND section_name
       const { data: sectionData, error: sectionError } = await supabase
         .from('sections')
         .select('id')
@@ -101,7 +94,6 @@ const TeacherAttendanceTable = ({
     }
   }, []);
 
-  // Fetch available dates for this class
   const fetchAvailableDates = useCallback(async () => {
     if (!className) return;
 
@@ -114,14 +106,12 @@ const TeacherAttendanceTable = ({
         return;
       }
 
-      // Find section ID
       const sectionId = await findSectionId(grade, section);
       if (!sectionId) {
         setAvailableDates([]);
         return;
       }
 
-      // Get students in this section
       const { data: classStudents, error: studentsError } = await supabase
         .from('students')
         .select('id')
@@ -140,7 +130,6 @@ const TeacherAttendanceTable = ({
 
       const studentIds = classStudents.map(s => s.id);
       
-      // Get unique dates where attendance exists for these students
       const { data: attendanceDates, error: datesError } = await supabase
         .from('attendance')
         .select('date')
@@ -149,7 +138,6 @@ const TeacherAttendanceTable = ({
 
       if (datesError) throw datesError;
 
-      // Extract unique dates (assuming they're already in Philippine time)
       const uniqueDates = [...new Set(attendanceDates?.map(item => item.date) || [])];
       setAvailableDates(uniqueDates);
 
@@ -161,7 +149,6 @@ const TeacherAttendanceTable = ({
     }
   }, [className, parseClassName, findSectionId]);
 
-  // Fetch attendance data
   const fetchClassAttendance = useCallback(async () => {
     if (!className) {
       setError('No class name provided');
@@ -180,13 +167,11 @@ const TeacherAttendanceTable = ({
         throw new Error(`Invalid class name format: ${className}`);
       }
       
-      // Find section ID using grade AND section name
       const sectionId = await findSectionId(grade, section);
       if (!sectionId) {
         throw new Error(`Section "${section}" in Grade ${grade} not found`);
       }
 
-      // Get students in this section
       const { data: classStudents, error: studentsError } = await supabase
         .from('students')
         .select(`
@@ -210,7 +195,6 @@ const TeacherAttendanceTable = ({
         return;
       }
 
-      // Get attendance records for the selected date
       const studentIds = classStudents.map(s => s.id);
       
       const { data: attendanceRecords, error: attendanceError } = await supabase
@@ -221,7 +205,6 @@ const TeacherAttendanceTable = ({
 
       if (attendanceError) throw attendanceError;
 
-      // Transform data
       const attendanceMap = new Map();
       attendanceRecords?.forEach(record => {
         attendanceMap.set(record.student_id, record);
@@ -273,15 +256,12 @@ const TeacherAttendanceTable = ({
     }
   }, [className, getCurrentDatabaseDate, getPhilippinesDisplayDate, parseClassName, findSectionId, getCurrentPhilippinesDate]);
 
-  // Format time display - SIMPLE VERSION (no timezone conversion needed)
   const formatTimeDisplay = useCallback((timeString) => {
     if (!timeString) return 'N/A';
     
     try {
-      // Time is already in Philippine time in the database
       const [hours, minutes] = timeString.split(':').map(Number);
       
-      // Format as 12-hour time
       const period = hours >= 12 ? 'PM' : 'AM';
       const displayHours = hours % 12 || 12;
       
@@ -292,7 +272,6 @@ const TeacherAttendanceTable = ({
     }
   }, []);
 
-  // Format status with styling
   const formatStatusWithStyle = useCallback((status) => {
     let className = styles.status;
     let displayText = 'Absent';
@@ -317,23 +296,19 @@ const TeacherAttendanceTable = ({
     return { className, text: displayText };
   }, []);
 
-  // Handle date selection
   const handleDateSelect = useCallback((date) => {
     setSelectedDate(date);
   }, []);
 
-  // Check if a date is today in Philippine time
   const isToday = useCallback((dateString) => {
     if (!dateString) return false;
     const todayPhilippines = getCurrentPhilippinesDate();
     return dateString === todayPhilippines;
   }, [getCurrentPhilippinesDate]);
 
-  // Filter and sort attendances
   const filteredAttendances = useMemo(() => {
     let filtered = attendances;
     
-    // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(attendance => {
@@ -343,7 +318,6 @@ const TeacherAttendanceTable = ({
       });
     }
     
-    // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(attendance => 
         attendance.status?.toLowerCase() === statusFilter.toLowerCase()
@@ -353,7 +327,6 @@ const TeacherAttendanceTable = ({
     return sortEntities(filtered, { type: 'student' });
   }, [attendances, searchTerm, statusFilter]);
 
-  // Calculate statistics based on filtered data
   const stats = useMemo(() => {
     const total = filteredAttendances.length;
     const present = filteredAttendances.filter(a => a.status === 'present').length;
@@ -363,7 +336,6 @@ const TeacherAttendanceTable = ({
     return { total, present, late, absent };
   }, [filteredAttendances]);
 
-  // Initial fetch and subscribe to changes
   useEffect(() => {
     if (className) {
       fetchClassAttendance();
@@ -391,14 +363,12 @@ const TeacherAttendanceTable = ({
     }
   }, [className, fetchClassAttendance, fetchAvailableDates]);
 
-  // Re-fetch when date changes
   useEffect(() => {
     if (className && selectedDate !== undefined) {
       fetchClassAttendance();
     }
   }, [selectedDate, className, fetchClassAttendance]);
 
-  // Render loading state
   if (loading) {
     return (
       <div className={styles.container}>
@@ -410,7 +380,6 @@ const TeacherAttendanceTable = ({
     );
   }
 
-  // Render error state
   if (error) {
     return (
       <div className={styles.container}>
@@ -430,7 +399,6 @@ const TeacherAttendanceTable = ({
 
   return (
     <div className={styles.container}>
-      {/* Header - 3 Columns */}
       <div className={styles.headerGrid}>
         <div className={styles.headerColumn}>
           <h2 className={styles.className}>{className}</h2>
@@ -443,7 +411,6 @@ const TeacherAttendanceTable = ({
         </div>
       </div>
 
-      {/* Search and Filter Row */}
       <div className={styles.filterRow}>
         <div className={styles.searchContainer}>
           <Input
@@ -536,7 +503,6 @@ const TeacherAttendanceTable = ({
         </div>
       </div>
 
-      {/* Attendance Table */}
       <div className={styles.tableContainer}>
         <div className={styles.tableWrapper}>
           <table className={styles.attendanceTable}>

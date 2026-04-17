@@ -25,16 +25,14 @@ function Chatbot() {
     const userMessage = inputText;
     setInputText('');
     
-    // Add user message
     setMessages(prev => [...prev, { text: userMessage, sender: 'user' }]);
     
     setIsLoading(true);
 
     try {
       
-      const apiKey = "AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; //
+      const apiKey = "AIzaSyB7C1821Y9MQFi-v0fONGEm1TRgIbO5IRU"; 
       
-      // Quick validation
       if (!apiKey || apiKey === "AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") {
         throw new Error('Please replace the placeholder API key with your actual Gemini API key');
       }
@@ -46,13 +44,11 @@ function Chatbot() {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
 
-      // Prepare conversation history (last 4 messages)
       const recentMessages = messages.slice(-4).map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
         parts: [{ text: msg.text }]
       }));
 
-      // SYSTEM PROMPT WITH SPECIFIC CONTEXT ABOUT YOUR ATTENDANCE SYSTEM
       const systemPrompt = `You are an AI assistant for a QR Code Attendance Tracking System used in educational institutions.
 
 IMPORTANT SYSTEM CONTEXT:
@@ -121,7 +117,6 @@ Current user is likely an administrator or teacher in the Settings section.`;
       const response = await result.response;
       const botMessage = response.text();
 
-      // Add bot response
       setMessages(prev => [...prev, { text: botMessage, sender: 'bot' }]);
     } catch (error) {
       console.error('Chatbot error:', error);

@@ -8,7 +8,6 @@ export const useAttendance = () => {
   const [error, setError] = useState(null);
   const [currentDate, setCurrentDate] = useState(null);
   
-  // Get Philippines time (UTC+8)
   const getPhilippinesDate = useCallback(() => {
     const now = new Date();
     const phTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
@@ -20,12 +19,10 @@ export const useAttendance = () => {
     return new Date(now.getTime() + (8 * 60 * 60 * 1000));
   }, []);
 
-  // Create default absent records for a date
   const createDefaultAbsentRecordsForDate = useCallback(async (date) => {
     try {
       console.log(`📅 Creating default absent records for DATE: ${date}`);
       
-      // Check if records already exist for this date
       const { data: existingAttendance, error: checkError } = await supabase
         .from('attendance')
         .select('student_lrn')
@@ -34,13 +31,11 @@ export const useAttendance = () => {
       
       if (checkError) throw checkError;
       
-      // Skip if records already exist
       if (existingAttendance && existingAttendance.length > 0) {
         console.log(`📋 Attendance records already exist for ${date}, skipping`);
         return;
       }
       
-      // Get all active students
       const { data: allStudents, error: studentsError } = await supabase
         .from('students')
         .select(`
@@ -60,7 +55,6 @@ export const useAttendance = () => {
         return;
       }
       
-      // Create default absent records for all students
       const defaultRecords = allStudents.map(student => ({
         student_lrn: student.lrn,
         student_id: student.id,
@@ -94,16 +88,12 @@ export const useAttendance = () => {
     }
   }, [getPhilippinesDateTime]);
 
-  // Helper function to process attendance data
   const processAttendanceData = useCallback((students, attendanceRecords, targetDate) => {
-    // Map students to their attendance records
     const combinedData = students.map(student => {
-      // Find attendance record for this student
       const studentRecord = attendanceRecords?.find(record => 
         record.student_lrn === student.lrn || record.student_id === student.id
       );
 
-      // If no record exists, create a temporary absent record
       if (!studentRecord) {
         return {
           id: `temp-${student.id}-${targetDate}`,
@@ -152,19 +142,16 @@ export const useAttendance = () => {
     return combinedData;
   }, []);
 
-  // Main attendance fetching function
   const fetchAttendance = useCallback(async (grade = 'all', date = null) => {
     setLoading(true);
     setError(null);
     
     try {
-      // Use provided date or today's date
       const targetDate = date || getPhilippinesDate();
       setCurrentDate(targetDate);
       
       console.log(`📊 Fetching attendance for ${grade === 'all' ? 'all grades' : `Grade ${grade}`} on ${targetDate}`);
       
-      // Get all students with proper grade and section joins
       let studentsQuery = supabase
         .from('students')
         .select(`
@@ -185,7 +172,6 @@ export const useAttendance = () => {
       const { data: students, error: studentsError } = await studentsQuery;
       if (studentsError) throw studentsError;
 
-      // Get attendance records for the target date
       const { data: attendanceRecords, error: attendanceError } = await supabase
         .from('attendance')
         .select('*')
@@ -196,12 +182,10 @@ export const useAttendance = () => {
 
       let finalRecords = attendanceRecords;
       
-      // If no attendance records exist for this date, create default absent records
       if (!attendanceRecords || attendanceRecords.length === 0) {
         console.log(`📭 No attendance records found for ${targetDate}, creating defaults...`);
         await createDefaultAbsentRecordsForDate(targetDate);
         
-        // Fetch again after creating defaults
         const { data: newAttendanceRecords, error: newAttendanceError } = await supabase
           .from('attendance')
           .select('*')
@@ -223,36 +207,30 @@ export const useAttendance = () => {
     }
   }, [getPhilippinesDate, createDefaultAbsentRecordsForDate, processAttendanceData]);
 
-  // Fetch attendance for specific date
   const fetchAttendanceForDate = useCallback(async (date, grade = 'all') => {
     return fetchAttendance(grade, date);
   }, [fetchAttendance]);
 
-  // Change class function
   const changeClass = useCallback((className) => {
     setCurrentClass(className);
   }, []);
 
-  // Initialize with today's data
   useEffect(() => {
     fetchAttendance('all');
   }, [fetchAttendance]);
 
   return {
-    // State
     currentClass,
     attendances,
     loading,
     error,
     currentDate,
     
-    // Functions
     changeClass,
     fetchAttendance,
     fetchAttendanceForDate,
     refreshAttendance: () => fetchAttendance(currentClass, currentDate),
     
-    // Statistics helpers
     getStatusCounts: () => {
       const counts = {
         present: 0,

@@ -152,7 +152,7 @@ function AdminDashboard() {
           <PageLabel icon={<DashboardIcon sx={{ fontSize: 50, mb: -0.7 }}  />} label="Dashboard"></PageLabel>
           <DateTodayLabel></DateTodayLabel>    
         </div>
-        <SectionLabel label="Registered Users"></SectionLabel>
+        <SectionLabel label="Overview"></SectionLabel>
         <div className={styles.cards}>
           {/* Students Card */}
           <DashboardCard  

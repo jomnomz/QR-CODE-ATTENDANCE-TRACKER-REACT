@@ -6,7 +6,6 @@
   overflow: hidden;
 }
 
-/* Header */
 .header {
   display: flex;
   justify-content: space-between;
@@ -67,7 +66,6 @@
   font-size: 16px;
 }
 
-/* Filter Row */
 .filterRow {
   display: flex;
   justify-content: space-between;
@@ -127,7 +125,6 @@
   color: #1864ab;
 }
 
-/* Table Container */
 .tableContainer {
   flex: 1;
   min-height: 0;
@@ -186,7 +183,6 @@
   border-bottom: none;
 }
 
-/* Column Widths for Weekly Report */
 .dateColumn, .dateCell {
   width: 180px;
   min-width: 180px;
@@ -202,7 +198,6 @@
   min-width: 120px;
 }
 
-/* Column Widths for Monthly/Yearly Report */
 .periodColumn, .periodCell {
   width: 160px;
   min-width: 160px;
@@ -225,7 +220,6 @@
   min-width: 180px;
 }
 
-/* Row styling */
 .rowEven {
   background-color: #ffffff;
 }
@@ -239,7 +233,6 @@
   background-color: #e7f5ff;
 }
 
-/* Status styles */
 .status {
   display: inline-block;
   padding: 6px 12px;
@@ -267,7 +260,6 @@
   color: #c92a2a;
 }
 
-/* Rate bar */
 .rateContainer {
   position: relative;
   display: flex;
@@ -284,14 +276,12 @@
   border-radius: 2px;
 }
 
-/* Cell specific styles */
 .dateCell, .periodCell, .daysCell, .countCell, .timeCell, .statusCell, .rateCell {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* No data */
 .noData {
   text-align: center;
   padding: 60px 20px;
@@ -300,7 +290,6 @@
   font-size: 16px;
 }
 
-/* Footer */
 .footer {
   margin-top: 20px;
   padding-top: 16px;
@@ -317,7 +306,6 @@
   border-left: 4px solid #495057;
 }
 
-/* Loading styles */
 .loading {
   display: flex;
   flex-direction: column;
@@ -343,7 +331,6 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Error styles */
 .error {
   padding: 40px;
   text-align: center;
@@ -375,7 +362,6 @@
   background-color: #343a40;
 }
 
-/* Custom scrollbar */
 .tableWrapper::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -395,7 +381,6 @@
   background: #a8a8a8;
 }
 
-/* Responsive adjustments */
 @media (max-width: 1200px) {
   .header {
     flex-direction: column;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useEntityEdit } from '../../Hooks/useEntityEdit';
 import { useRowExpansion } from '../../Hooks/useRowExpansion';
-import { grades } from '../../../Utils/tableHelpers';
+import { grades } from '../../../Utils/TableHelpers';
 import { formatNA } from '../../../Utils/Formatters';
 import { sortGuardians } from '../../../Utils/SortEntities'; 
 import Button from '../../UI/Buttons/Button/Button';
@@ -19,7 +19,6 @@ const GuardianTable = ({
   onClearSectionFilter,
   onSectionSelect,
   availableSections = [],
-  // Props from parent
   guardians: propGuardians = [],
   loading: parentLoading = false
 }) => {
@@ -41,7 +40,6 @@ const GuardianTable = ({
   } = useEntityEdit(guardians, setGuardians, 'guardian');
   const [localGuardians, setLocalGuardians] = useState([]);
 
-  // Initialize guardians from parent props
   useEffect(() => {
     if (propGuardians && propGuardians.length > 0) {
       console.log('📊 Initializing guardians from parent:', propGuardians.length);
@@ -53,14 +51,12 @@ const GuardianTable = ({
     }
   }, [propGuardians, parentLoading]);
 
-  // Update guardians when parent data changes
   useEffect(() => {
     if (propGuardians && propGuardians.length >= 0) {
       setGuardians(propGuardians);
     }
   }, [propGuardians]);
 
-  // Subscribe to student changes (since guardians are in students table)
   useEffect(() => {
     const subscription = supabase
       .channel('guardians-changes')
@@ -72,7 +68,6 @@ const GuardianTable = ({
           table: 'students'
         },
         () => {
-          // Parent component will handle the refresh
         }
       )
       .subscribe();
@@ -82,7 +77,6 @@ const GuardianTable = ({
     };
   }, []);
 
-  // Sync and sort local state with fetched guardians
   useEffect(() => {
     if (guardians && guardians.length > 0) {
       const sortedGuardians = sortGuardians(guardians);
@@ -92,7 +86,6 @@ const GuardianTable = ({
     }
   }, [guardians]);
 
-  // Get unique sections from ALL guardians
   const allUniqueSections = useMemo(() => {
     const sections = localGuardians
       .map(guardian => guardian.section || '')
@@ -102,7 +95,6 @@ const GuardianTable = ({
     return uniqueSections.sort();
   }, [localGuardians]);
 
-  // Get sections for CURRENT grade only
   const currentGradeSections = useMemo(() => {
     if (currentClass === 'all') {
       return allUniqueSections;
@@ -117,26 +109,21 @@ const GuardianTable = ({
     return uniqueSections.sort();
   }, [localGuardians, currentClass, allUniqueSections]);
 
-  // FIXED: Always show only sections for the current grade
   const sectionsToShowInDropdown = useMemo(() => {
     return currentGradeSections;
   }, [currentGradeSections]);
 
-  // Use sorted and filtered guardians for display
   const sortedGuardians = useMemo(() => {
     let filtered = localGuardians;
     
-    // Apply grade filter
     if (currentClass !== 'all') {
       filtered = filtered.filter(guardian => guardian.grade === currentClass);
     }
     
-    // Apply section filter
     if (selectedSection) {
       filtered = filtered.filter(guardian => guardian.section === selectedSection);
     }
     
-    // Apply search filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(guardian => 
@@ -167,10 +154,8 @@ const GuardianTable = ({
     }
   }, [currentClass, onGradeUpdate]);
 
-  // Clear section selection if it's not valid for the current grade
   useEffect(() => {
     if (selectedSection && currentClass !== 'all') {
-      // Check if the selected section exists in the current grade's sections
       const isValidSection = currentGradeSections.includes(selectedSection);
       if (!isValidSection && onSectionSelect) {
         console.log(`🔄 Clearing invalid section selection: ${selectedSection} is not in Grade ${currentClass}`);
@@ -233,7 +218,6 @@ const GuardianTable = ({
     );
     
     if (result.success) {
-      // The parent component will handle the refresh through the subscription
     }
   };
 

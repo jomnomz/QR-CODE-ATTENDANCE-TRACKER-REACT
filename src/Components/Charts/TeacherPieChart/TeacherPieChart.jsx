@@ -27,16 +27,16 @@ const TeacherPieChart = ({ teacherId, teacherSections, teacherClasses }) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '60%', // Changed from 70% to 60% to match Admin
+    cutout: '60%', 
     plugins: {
       legend: {
-        position: 'top', // Changed from 'right' to 'top' to match Admin
+        position: 'top', 
         align: 'center',
         labels: {
           boxWidth: 12,
           padding: 10,
           font: {
-            size: 15 // Match Admin font size
+            size: 15 
           },
           usePointStyle: true,
           pointStyle: 'circle'
@@ -48,13 +48,11 @@ const TeacherPieChart = ({ teacherId, teacherSections, teacherClasses }) => {
             const label = context.label || '';
             const value = context.raw || 0;
             
-            // Get count for this status
             let count = 0;
             if (label === 'Present') count = overallStats.presentCount;
             else if (label === 'Late') count = overallStats.lateCount;
             else if (label === 'Absent') count = overallStats.absentCount;
             
-            // Format: "Present: 60% (6 students)"
             const studentText = count === 1 ? 'student' : 'students';
             return `${label}: ${value}% (${count} ${studentText})`;
           }

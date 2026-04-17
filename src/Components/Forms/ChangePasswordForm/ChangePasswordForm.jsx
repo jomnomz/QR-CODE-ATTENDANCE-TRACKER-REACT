@@ -18,7 +18,6 @@ function ChangePasswordForm({ onChangePassword, loading = false }) {
     e.preventDefault();
     setError('');
     
-    // Client-side validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       setError('Please fill in all password fields');
       return;
@@ -39,26 +38,21 @@ function ChangePasswordForm({ onChangePassword, loading = false }) {
       return;
     }
     
-    // Call parent function and handle server errors
     if (onChangePassword) {
       try {
         const result = await onChangePassword(currentPassword, newPassword, confirmPassword);
         
-        // If onChangePassword returns an error object
         if (result && result.error) {
           setError(result.error);
           return;
         }
         
-        // If it returns false or undefined with no error, assume success
         if (result === false) {
-          // Parent might have shown toast, but we should clear form
           setCurrentPassword('');
           setNewPassword('');
           setConfirmPassword('');
         }
       } catch (err) {
-        // Handle any unexpected errors
         setError('An unexpected error occurred. Please try again.');
         console.error('Password change error:', err);
       }

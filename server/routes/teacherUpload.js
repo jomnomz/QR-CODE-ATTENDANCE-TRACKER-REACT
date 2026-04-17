@@ -9,7 +9,6 @@ import { validateTeacherData } from '../../src/Utils/TeacherValidation.js';
 
 const router = express.Router();
 
-// CSV headers mapping
 const csvHeaders = {
   employee_id: ['Employee ID', 'employee_id', 'Employee_ID', 'ID Number', 'ID_Number', 'ID'],
   first_name: ['First Name', 'first_name', 'First_Name', 'Given Name', 'Given_Name', 'First'],
@@ -49,16 +48,12 @@ const cleanTeacherData = (teacher) => {
     }
   });
   
-  // ✅✅✅ SET STATUS TO NULL (NO STATUS) FOR NEW TEACHERS ✅✅✅
-  // Don't set any default - leave it as null/empty
-  // The status column will be empty in the database
   
   return cleaned;
 };
 
 const validateStatus = (status) => {
-  // If status is provided and valid, keep it
-  // If not provided or empty, return null (no status)
+
   if (!status || status.toString().trim() === '') return null;
   
   const statusLower = status.toString().toLowerCase().trim();

@@ -299,7 +299,7 @@ export class TeacherService extends EntityService {
   }
 }
 
-// Student-specific service - UPDATED WITH GRADE/SECTION RELATIONSHIPS
+// Student-specific service - UPDATED WITH PROPER SYNC BETWEEN TEXT AND FOREIGN KEYS
 export class StudentService extends EntityService {
   constructor() {
     super('students');
@@ -310,13 +310,16 @@ export class StudentService extends EntityService {
       .from(this.tableName)
       .select(`
         *,
-        grade_info:grades(
+        grade_info:grades!grade_id (
           id,
           grade_level
         ),
-        section_info:sections(
+        section_info:sections!section_id (
           id,
-          section_name
+          section_name,
+          grade:grades!grade_id (
+            grade_level
+          )
         ),
         created_by_user:users!students_created_by_fkey(
           user_id,
@@ -336,17 +339,25 @@ export class StudentService extends EntityService {
     
     if (error) throw error;
     
-    // Transform data to include proper grade and section names
-    const transformedData = (data || []).map(student => ({
-      ...student,
-      // Use grade from grades table if available, otherwise use text field or fallback
-      grade: student.grade_info?.grade_level || student.grade || 'N/A',
-      // Use section from sections table if available, otherwise use text field or fallback
-      section: student.section_info?.section_name || student.section || 'N/A',
-      // Keep original IDs
-      grade_id: student.grade_id,
-      section_id: student.section_id
-    }));
+    // Transform data - prioritize text fields for display
+    const transformedData = (data || []).map(student => {
+      // Use text fields first (these are what Excel uploads use)
+      // If text fields are empty, use the relational data
+      const gradeText = student.grade || student.grade_info?.grade_level || 'N/A';
+      const sectionText = student.section || student.section_info?.section_name || 'N/A';
+      
+      return {
+        ...student,
+        grade: gradeText,
+        section: sectionText,
+        // Keep the foreign keys
+        grade_id: student.grade_id,
+        section_id: student.section_id,
+        // Also keep the relational data for reference
+        grade_info: student.grade_info,
+        section_info: student.section_info
+      };
+    });
     
     return transformedData;
   }
@@ -356,13 +367,16 @@ export class StudentService extends EntityService {
       .from(this.tableName)
       .select(`
         *,
-        grade_info:grades(
+        grade_info:grades!grade_id (
           id,
           grade_level
         ),
-        section_info:sections(
+        section_info:sections!section_id (
           id,
-          section_name
+          section_name,
+          grade:grades!grade_id (
+            grade_level
+          )
         ),
         created_by_user:users!students_created_by_fkey(
           user_id,
@@ -379,39 +393,147 @@ export class StudentService extends EntityService {
           last_name
         )
       `)
-      .eq('grade', grade);
+      .eq('grade', grade); // Filter by text field
     
     if (error) throw error;
     
-    // Transform data to include proper grade and section names
-    const transformedData = (data || []).map(student => ({
-      ...student,
-      // Use grade from grades table if available, otherwise use text field or fallback
-      grade: student.grade_info?.grade_level || student.grade || 'N/A',
-      // Use section from sections table if available, otherwise use text field or fallback
-      section: student.section_info?.section_name || student.section || 'N/A',
-      // Keep original IDs
-      grade_id: student.grade_id,
-      section_id: student.section_id
-    }));
+    // Transform data - prioritize text fields for display
+    const transformedData = (data || []).map(student => {
+      const gradeText = student.grade || student.grade_info?.grade_level || 'N/A';
+      const sectionText = student.section || student.section_info?.section_name || 'N/A';
+      
+      return {
+        ...student,
+        grade: gradeText,
+        section: sectionText,
+        grade_id: student.grade_id,
+        section_id: student.section_id,
+        grade_info: student.grade_info,
+        section_info: student.section_info
+      };
+    });
     
     return transformedData;
   }
 
   async update(id, updates) {
+    console.log('🔄 StudentService.update() called with:', { id, updates });
+    
+    // Prepare final updates with sync between text fields and foreign keys
+    let finalUpdates = { ...updates };
+    
+    // SYNC LOGIC: Keep text fields and foreign keys in sync
+    
+    // 1. If grade_id is being updated, update the text grade field too
+    if (updates.grade_id !== undefined && updates.grade_id !== null) {
+      console.log('🔍 Fetching grade text for grade_id:', updates.grade_id);
+      const { data: grade, error: gradeError } = await supabase
+        .from('grades')
+        .select('grade_level')
+        .eq('id', updates.grade_id)
+        .single();
+      
+      if (gradeError) {
+        console.error('❌ Error fetching grade:', gradeError);
+      } else if (grade) {
+        finalUpdates.grade = grade.grade_level; // Sync text field
+        console.log('✅ Synced grade text to:', grade.grade_level);
+      }
+    } 
+    // 2. If grade (text) is being updated, find the matching grade_id
+    else if (updates.grade !== undefined && updates.grade !== null && updates.grade !== '') {
+      console.log('🔍 Finding grade_id for grade text:', updates.grade);
+      const { data: grade, error: gradeError } = await supabase
+        .from('grades')
+        .select('id')
+        .eq('grade_level', updates.grade)
+        .single();
+      
+      if (gradeError) {
+        console.error('❌ Error finding grade:', gradeError);
+      } else if (grade) {
+        finalUpdates.grade_id = grade.id; // Sync foreign key
+        console.log('✅ Found grade_id:', grade.id, 'for grade:', updates.grade);
+      } else {
+        console.error('❌ Grade not found for text:', updates.grade);
+        // Keep grade text but set grade_id to null
+        finalUpdates.grade_id = null;
+      }
+    }
+    
+    // 3. If section_id is being updated, update the text section field too
+    if (updates.section_id !== undefined && updates.section_id !== null) {
+      console.log('🔍 Fetching section text for section_id:', updates.section_id);
+      const { data: section, error: sectionError } = await supabase
+        .from('sections')
+        .select('section_name')
+        .eq('id', updates.section_id)
+        .single();
+      
+      if (sectionError) {
+        console.error('❌ Error fetching section:', sectionError);
+      } else if (section) {
+        finalUpdates.section = section.section_name; // Sync text field
+        console.log('✅ Synced section text to:', section.section_name);
+      }
+    } 
+    // 4. If section (text) is being updated, we need grade_id to find the correct section
+    else if (updates.section !== undefined && updates.section !== null && updates.section !== '') {
+      // We need grade_id to find the correct section
+      const gradeId = finalUpdates.grade_id;
+      
+      if (gradeId) {
+        console.log('🔍 Finding section_id for section text:', updates.section, 'in grade_id:', gradeId);
+        const { data: section, error: sectionError } = await supabase
+          .from('sections')
+          .select('id')
+          .eq('section_name', updates.section)
+          .eq('grade_id', gradeId)
+          .single();
+        
+        if (sectionError && sectionError.code !== 'PGRST116') {
+          console.error('❌ Error finding section:', sectionError);
+        } else if (section) {
+          finalUpdates.section_id = section.id; // Sync foreign key
+          console.log('✅ Found section_id:', section.id, 'for section:', updates.section);
+        } else {
+          console.error('❌ Section not found for text:', updates.section, 'in grade_id:', gradeId);
+          // Keep section text but set section_id to null
+          finalUpdates.section_id = null;
+        }
+      } else {
+        console.log('⚠️ Cannot find section without grade_id');
+        // Keep section text but set section_id to null
+        finalUpdates.section_id = null;
+      }
+    }
+    
+    // Clean up: remove any undefined or null values that might cause errors
+    Object.keys(finalUpdates).forEach(key => {
+      if (finalUpdates[key] === undefined || finalUpdates[key] === '') {
+        finalUpdates[key] = null;
+      }
+    });
+    
+    console.log('💾 Final updates to save:', finalUpdates);
+    
+    // Perform the update
     const { data, error } = await supabase
       .from(this.tableName)
-      .update(updates)
+      .update(finalUpdates)
       .eq('id', id)
       .select(`
         *,
-        grade_info:grades(
+        grade_info:grades!grade_id (
           id,
           grade_level
         ),
-        section_info:sections(
+        section_info:sections!section_id (
           id,
-          section_name
+          section_name,
+          grade:grades!grade_id (
+            grade_level
+          )
         ),
         created_by_user:users!students_created_by_fkey(
           user_id,
@@ -430,15 +552,23 @@ export class StudentService extends EntityService {
       `)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database update error:', error);
+      throw error;
+    }
+    
+    console.log('✅ Student updated successfully:', data);
     
     // Transform the single student record
     const transformedStudent = {
       ...data,
-      grade: data.grade_info?.grade_level || data.grade || 'N/A',
-      section: data.section_info?.section_name || data.section || 'N/A',
+      // Use text fields for display (they should now be synced)
+      grade: data.grade || data.grade_info?.grade_level || 'N/A',
+      section: data.section || data.section_info?.section_name || 'N/A',
       grade_id: data.grade_id,
-      section_id: data.section_id
+      section_id: data.section_id,
+      grade_info: data.grade_info,
+      section_info: data.section_info
     };
     
     return transformedStudent;
@@ -447,6 +577,80 @@ export class StudentService extends EntityService {
   async generateTokenForStudent(id) {
     const token = crypto.randomUUID();
     return this.update(id, { qr_verification_token: token });
+  }
+  
+  // NEW: Method to sync ALL students' text fields with foreign keys
+  async syncAllStudentsTextFields() {
+    console.log('🔄 Starting sync of all students text fields with foreign keys...');
+    
+    try {
+      // Get all students with their current data
+      const { data: students, error: fetchError } = await supabase
+        .from(this.tableName)
+        .select('*');
+      
+      if (fetchError) throw fetchError;
+      
+      let updatedCount = 0;
+      let errorCount = 0;
+      
+      // Update each student
+      for (const student of students) {
+        try {
+          const updates = {};
+          let needsUpdate = false;
+          
+          // Sync grade text from grade_id
+          if (student.grade_id) {
+            const { data: grade } = await supabase
+              .from('grades')
+              .select('grade_level')
+              .eq('id', student.grade_id)
+              .single();
+            
+            if (grade && grade.grade_level !== student.grade) {
+              updates.grade = grade.grade_level;
+              needsUpdate = true;
+            }
+          }
+          
+          // Sync section text from section_id
+          if (student.section_id) {
+            const { data: section } = await supabase
+              .from('sections')
+              .select('section_name')
+              .eq('id', student.section_id)
+              .single();
+            
+            if (section && section.section_name !== student.section) {
+              updates.section = section.section_name;
+              needsUpdate = true;
+            }
+          }
+          
+          // Update if needed
+          if (needsUpdate) {
+            await supabase
+              .from(this.tableName)
+              .update(updates)
+              .eq('id', student.id);
+            
+            updatedCount++;
+            console.log(`✅ Synced student ${student.id}:`, updates);
+          }
+        } catch (err) {
+          console.error(`❌ Error syncing student ${student.id}:`, err);
+          errorCount++;
+        }
+      }
+      
+      console.log(`📊 Sync completed: ${updatedCount} updated, ${errorCount} errors`);
+      return { success: true, updated: updatedCount, errors: errorCount };
+      
+    } catch (error) {
+      console.error('❌ Sync failed:', error);
+      return { success: false, error: error.message };
+    }
   }
 }
 
@@ -472,11 +676,11 @@ export class GuardianService extends EntityService {
         guardian_last_name,
         guardian_phone_number,
         guardian_email,
-        grade_info:grades(
+        grade_info:grades!grade_id (
           id,
           grade_level
         ),
-        section_info:sections(
+        section_info:sections!section_id (
           id,
           section_name
         )
@@ -485,11 +689,16 @@ export class GuardianService extends EntityService {
     if (error) throw error;
     
     // Transform data first, then convert to guardian format
-    const transformedData = (data || []).map(student => ({
-      ...student,
-      grade: student.grade_info?.grade_level || student.grade || 'N/A',
-      section: student.section_info?.section_name || student.section || 'N/A'
-    }));
+    const transformedData = (data || []).map(student => {
+      const gradeText = student.grade || student.grade_info?.grade_level || 'N/A';
+      const sectionText = student.section || student.section_info?.section_name || 'N/A';
+      
+      return {
+        ...student,
+        grade: gradeText,
+        section: sectionText
+      };
+    });
     
     return this.transformToGuardianFormat(transformedData);
   }
@@ -510,11 +719,11 @@ export class GuardianService extends EntityService {
         guardian_last_name,
         guardian_phone_number,
         guardian_email,
-        grade_info:grades(
+        grade_info:grades!grade_id (
           id,
           grade_level
         ),
-        section_info:sections(
+        section_info:sections!section_id (
           id,
           section_name
         )
@@ -524,11 +733,16 @@ export class GuardianService extends EntityService {
     if (error) throw error;
     
     // Transform data first, then convert to guardian format
-    const transformedData = (data || []).map(student => ({
-      ...student,
-      grade: student.grade_info?.grade_level || student.grade || 'N/A',
-      section: student.section_info?.section_name || student.section || 'N/A'
-    }));
+    const transformedData = (data || []).map(student => {
+      const gradeText = student.grade || student.grade_info?.grade_level || 'N/A';
+      const sectionText = student.section || student.section_info?.section_name || 'N/A';
+      
+      return {
+        ...student,
+        grade: gradeText,
+        section: sectionText
+      };
+    });
     
     return this.transformToGuardianFormat(transformedData);
   }
@@ -548,11 +762,11 @@ export class GuardianService extends EntityService {
       .eq('id', studentId)
       .select(`
         *,
-        grade_info:grades(
+        grade_info:grades!grade_id (
           id,
           grade_level
         ),
-        section_info:sections(
+        section_info:sections!section_id (
           id,
           section_name
         )
@@ -564,8 +778,8 @@ export class GuardianService extends EntityService {
     // Transform the updated student
     const transformedStudent = {
       ...data,
-      grade: data.grade_info?.grade_level || data.grade || 'N/A',
-      section: data.section_info?.section_name || data.section || 'N/A'
+      grade: data.grade || data.grade_info?.grade_level || 'N/A',
+      section: data.section || data.section_info?.section_name || 'N/A'
     };
     
     return this.transformToGuardianFormat([transformedStudent])[0];

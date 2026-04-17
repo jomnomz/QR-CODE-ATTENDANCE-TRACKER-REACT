@@ -24,7 +24,6 @@ const AttendanceTableModal = ({
           schoolYear={schoolYear}
           onEditClick={(studentId, attendanceData) => {
             console.log('Edit clicked:', studentId, attendanceData);
-            // Handle edit logic here or pass to parent
           }}
         />
       </div>

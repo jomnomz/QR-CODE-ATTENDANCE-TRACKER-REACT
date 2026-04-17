@@ -1,27 +1,24 @@
-// iProgService.js - LOCAL DEMO ONLY (No real SMS)
 import { supabase } from '../config/supabase.js';
 
-// ==================== CONFIGURATION ====================
-const DEMO_MODE = true;  // ← SET THIS TO TRUE FOR LOCAL DEMO
-const DEMO_PREFIX = '🚫 [DEMO MODE]';
-
-// ==================== UTILITY FUNCTIONS ====================
-
-// Format phone for display only
 export const formatPhoneForIprog = (phone) => {
   if (!phone) return null;
+  
   let cleaned = phone.replace(/\D/g, '');
+  
   if (cleaned.startsWith('0') && cleaned.length === 10) {
-    return cleaned;
+    return cleaned; 
   } else if (cleaned.startsWith('9') && cleaned.length === 10) {
-    return '0' + cleaned;
+    return '0' + cleaned; 
   } else if (cleaned.startsWith('63') && cleaned.length === 12) {
-    return '0' + cleaned.substring(2);
+    return '0' + cleaned.substring(2); 
+  } else if (cleaned.startsWith('+63') && cleaned.length === 13) {
+    return '0' + cleaned.substring(3); 
   }
-  return phone;
+  
+  console.log(`⚠️ Invalid PH number for iProg: ${phone} -> ${cleaned}`);
+  return null;
 };
 
-// Get Philippines time (display format)
 export const getPhilippinesTime = () => {
   const now = new Date();
   return now.toLocaleTimeString('en-PH', {
@@ -32,7 +29,6 @@ export const getPhilippinesTime = () => {
   });
 };
 
-// Get Philippines date (display format)
 export const getPhilippinesDate = () => {
   const now = new Date();
   return now.toLocaleDateString('en-PH', {
@@ -43,90 +39,106 @@ export const getPhilippinesDate = () => {
   });
 };
 
-// Get Philippines date in YYYY-MM-DD format (for database)
-const getPhilippinesDateISO = () => {
-  const now = new Date();
-  // Add 8 hours to convert UTC to PH time (UTC+8)
-  const phTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
-  return phTime.toISOString().split('T')[0];
-};
-
-// Get Philippines timestamp in ISO format (for sent_at)
-const getPhilippinesTimestamp = () => {
-  const now = new Date();
-  // Add 8 hours to convert UTC to PH time (UTC+8)
-  const phTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
-  return phTime.toISOString();
-};
-
-// ==================== DEMO SMS FUNCTION ====================
+async function sendViaIprog(phone, message) {
+  try {
+    const formattedPhone = formatPhoneForIprog(phone);
+    if (!formattedPhone) {
+      throw new Error('Invalid phone format for iProg');
+    }
+    
+    console.log(`📱 [iProg] Sending to ${formattedPhone}`);
+    
+    const params = new URLSearchParams({
+      api_token: process.env.IPROG_API_TOKEN,
+      phone_number: formattedPhone,
+      message: message.substring(0, 160),
+      sms_provider: '0'  
+    });
+    
+    const url = `https://www.iprogsms.com/api/v1/sms_messages?${params}`;
+    
+    console.log(`🔗 Calling: ${url.split('?')[0]}`);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    const result = await response.json();
+    console.log('✅ iProg response:', result);
+    
+    if (result.status === 200 || result.message?.includes('successfully')) {
+      return {
+        success: true,
+        provider: 'iproig',
+        messageId: result.message_id,
+        cost: '₱0.30',
+        rawResponse: result
+      };
+    } else {
+      throw new Error(result.error || result.message || 'iProg SMS failed');
+    }
+  } catch (error) {
+    console.error('❌ iProg SMS error:', error.message);
+    throw error;
+  }
+}
 
 async function sendDemoSMS(phone, message) {
-  const formattedPhone = formatPhoneForIprog(phone);
-  const messageId = `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log('🎓 [Demo Mode] SMS System Active');
+  console.log(`📱 To: ${phone}`);
+  console.log(`📱 Formatted: ${formatPhoneForIprog(phone)}`);
+  console.log(`💬 Message: ${message.substring(0, 60)}...`);
+  console.log(`💰 iProg Cost: ₱0.30 per SMS`);
+  console.log(`⚡ Instant Delivery: No verification needed`);
   
-  console.log(`\n${DEMO_PREFIX} ======================================`);
-  console.log(`${DEMO_PREFIX} 📱 DEMO SMS GENERATED`);
-  console.log(`${DEMO_PREFIX} ======================================`);
-  console.log(`${DEMO_PREFIX} To: ${phone}`);
-  console.log(`${DEMO_PREFIX} Formatted: ${formattedPhone}`);
-  console.log(`${DEMO_PREFIX} Message ID: ${messageId}`);
-  console.log(`${DEMO_PREFIX} Length: ${message.length} chars`);
-  console.log(`${DEMO_PREFIX} Time: ${getPhilippinesTime()}`);
-  console.log(`${DEMO_PREFIX} Date: ${getPhilippinesDate()}`);
-  console.log(`${DEMO_PREFIX} --------------------------------------`);
-  console.log(`${DEMO_PREFIX} 📝 MESSAGE CONTENT:`);
-  console.log(`${DEMO_PREFIX} ${message}`);
-  console.log(`${DEMO_PREFIX} --------------------------------------`);
-  console.log(`${DEMO_PREFIX} 💰 SAVED: ₱0.30 (No real SMS sent)`);
-  console.log(`${DEMO_PREFIX} 🔒 SECURITY: No API calls made`);
-  console.log(`${DEMO_PREFIX} ======================================\n`);
-  
-  // Simulate delay
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 500));
   
   return {
     success: true,
-    provider: 'demo',
+    provider: 'iproig (demo mode)',
     demo: true,
-    cost: '₱0.00',
-    messageId: messageId,
-    note: 'Local demo mode - no real SMS sent'
+    cost: '₱0.30',
+    note: 'iProg - Configure IPROG_API_TOKEN for real SMS'
   };
 }
 
-// Mock iProg function that NEVER makes API calls
-async function sendViaIprog(phone, message) {
-  console.log(`\n${DEMO_PREFIX} ⚠️  API CALL BLOCKED - USING LOCAL DEMO`);
-  console.log(`${DEMO_PREFIX} This would have called: https://www.iprogsms.com/api/v1/sms_messages`);
-  console.log(`${DEMO_PREFIX} API Token would have been: ${process.env.IPROG_API_TOKEN ? '[HIDDEN]' : 'NOT SET'}`);
-  
-  // Force fallback to demo mode
-  return sendDemoSMS(phone, message);
-}
-
-// Check iProg balance - demo version
+// Check iProg balance
 export const checkIprogBalance = async () => {
-  return {
-    provider: 'demo',
-    status: 'demo_mode',
-    configured: false,
-    demo_mode: true,
-    balance: '∞ credits',
-    cost_per_sms: '₱0.00',
-    sender_id: 'STO NINO (DEMO)',
-    note: 'Local demo mode - no real SMS credits used',
-    warning: 'All SMS are simulated locally'
-  };
+  try {
+    if (!process.env.IPROG_API_TOKEN) {
+      return {
+        provider: 'iProg',
+        status: 'not_configured',
+        message: 'Set IPROG_API_TOKEN in .env',
+        cost_per_sms: '₱0.30'
+      };
+    }
+    
+    return {
+      provider: 'iProg',
+      configured: true,
+      sender_id: process.env.IPROG_SENDER_ID || 'STO NINO',
+      cost_per_sms: '₱0.30',
+      free_credits: '5 SMS credits',
+      note: 'Check iProg dashboard for exact balance'
+    };
+  } catch (error) {
+    console.error('❌ iProg balance check error:', error);
+    return {
+      provider: 'iProg',
+      status: 'error',
+      message: error.message,
+      note: 'Check iProg dashboard for balance'
+    };
+  }
 };
 
-// ==================== MAIN SMS FUNCTION ====================
 
 export const sendAttendanceSMS = async (studentId, scanType) => {
   try {
-    console.log(`\n${DEMO_PREFIX} 📱 Processing student ${studentId}, scan: ${scanType}`);
+    console.log(`📱 Starting iProg SMS for student ${studentId}, scan: ${scanType}`);
     
-    // 1. Get student info
     const { data: student, error } = await supabase
       .from('students')
       .select(`
@@ -140,16 +152,14 @@ export const sendAttendanceSMS = async (studentId, scanType) => {
       throw new Error(`Student not found: ${error?.message}`);
     }
     
-    // 2. Check phone
     if (!student.guardian_phone_number) {
-      console.log(`${DEMO_PREFIX} ⚠️ No phone for ${student.guardian_first_name}`);
+      console.log(`⚠️ No phone for ${student.guardian_first_name}`);
       return {
         success: false,
         message: 'No guardian phone number'
       };
     }
     
-    // 3. Create Filipino message
     const studentName = `${student.first_name} ${student.last_name}`;
     const guardianName = student.guardian_first_name;
     const currentTime = getPhilippinesTime();
@@ -157,114 +167,125 @@ export const sendAttendanceSMS = async (studentId, scanType) => {
     
     let message;
     if (scanType === 'in') {
-      message = `Magandang araw ${guardianName}! Ang iyong anak na si ${studentName} ay nakarating na sa paaralan ngayong ${currentTime} (${currentDate}).`;
+      message = ` Magandang araw ${guardianName}! Ang iyong anak na si ${studentName} ay nakarating na sa paaralan ngayong ${currentTime} (${currentDate}).`;
     } else if (scanType === 'out') {
-      message = `Kumusta ${guardianName}! Si ${studentName} ay umalis na sa paaralan ngayong ${currentTime} (${currentDate}). Ingat pauwi!`;
+      message = ` Kumusta ${guardianName}! Si ${studentName} ay umalis na sa paaralan ngayong ${currentTime} (${currentDate}). Ingat pauwi!`;
     } else {
-      message = `Hello ${guardianName}! Na-record ang attendance ni ${studentName} ngayong ${currentTime} (${currentDate}).`;
+      message = ` Hello ${guardianName}! Na-record ang attendance ni ${studentName} ngayong ${currentTime} (${currentDate}).`;
     }
     
-    // 4. FORCE DEMO MODE (override any API token)
-    console.log(`${DEMO_PREFIX} 🔐 DEMO MODE ACTIVE - No real SMS will be sent`);
+    console.log(`📤 Preparing SMS to ${student.guardian_phone_number}`);
     
-    let result = await sendDemoSMS(student.guardian_phone_number, message);
+    const smsEnabled = process.env.SMS_ENABLED === 'true';
+    const startHour = parseInt(process.env.SMS_BUSINESS_HOURS_START) || 6;
+    const endHour = parseInt(process.env.SMS_BUSINESS_HOURS_END) || 21;
     
-    // 5. Get PHILIPPINES timestamp for database (UTC+8)
-    const philippinesTimestamp = getPhilippinesTimestamp();
+    if (smsEnabled) {
+      const now = new Date();
+      const manilaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+      const currentHour = manilaTime.getHours();
+      
+      if (currentHour < startHour || currentHour >= endHour) {
+        console.log(`🌙 Outside business hours (${startHour}:00-${endHour}:00)`);
+        
+        await supabase.from('sms_logs').insert({
+          student_id: student.id,
+          student_lrn: student.lrn,
+          guardian_name: student.guardian_first_name,
+          phone_number: student.guardian_phone_number,
+          message: message,
+          scan_type: scanType,
+          provider: 'iproig',
+          status: 'skipped',
+          reason: 'outside_business_hours',
+          sent_at: new Date().toISOString()
+        });
+        
+        return {
+          success: true,
+          skipped: true,
+          message: 'SMS skipped (outside business hours)'
+        };
+      }
+    }
     
-    // 6. LOG SMS - WITH CORRECT PH TIMEZONE
+    // 5. RATE LIMIT CHECK
+    const limitMinutes = parseInt(process.env.SMS_RATE_LIMIT_MINUTES) || 30;
+    const { data: recentSMS } = await supabase
+      .from('sms_logs')
+      .select('sent_at')
+      .eq('student_id', studentId)
+      .eq('scan_type', scanType)
+      .gte('sent_at', new Date(Date.now() - limitMinutes * 60000).toISOString())
+      .limit(1);
+    
+    if (recentSMS && recentSMS.length > 0) {
+      console.log(`⏸️ Rate limited (${limitMinutes} minutes)`);
+      return {
+        success: false,
+        rateLimited: true,
+        message: `Please wait ${limitMinutes} minutes`
+      };
+    }
+    
+    let result;
+    
+    if (process.env.IPROG_API_TOKEN) {
+      try {
+        result = await sendViaIprog(student.guardian_phone_number, message);
+      } catch (iproigError) {
+        console.log('⚠️ iProg failed, using demo mode:', iproigError.message);
+        result = await sendDemoSMS(student.guardian_phone_number, message);
+      }
+    } else {
+      result = await sendDemoSMS(student.guardian_phone_number, message);
+    }
+    
     const logData = {
       student_id: student.id,
       student_lrn: student.lrn,
       guardian_name: student.guardian_first_name,
       phone_number: student.guardian_phone_number,
       formatted_phone: formatPhoneForIprog(student.guardian_phone_number),
-      message: message.substring(0, 500), // Truncate if too long
-      scan_type: scanType, // Must be 'in' or 'out' exactly
-      provider: 'demo',
-      provider_id: null,
-      status: 'sent', // MUST be 'sent' not 'demo_simulated'
-      cost: '₱0.00',
-      reason: 'LOCAL DEMO - No real SMS sent',
-      demo_mode: true,
-      message_id: result.messageId,
-      sent_at: philippinesTimestamp, // ← STORE IN PH TIME (UTC+8)
-      // created_at will auto-populate with current timestamp
+      message: message,
+      scan_type: scanType,
+      provider: result.provider,
+      status: result.success ? 'sent' : 'failed',
+      cost: result.cost,
+      demo_mode: result.demo || false,
+      message_id: result.messageId || null,
+      sent_at: new Date().toISOString()
     };
     
-    console.log(`${DEMO_PREFIX} 📊 Inserting to sms_logs with PH time...`);
-    console.log(`${DEMO_PREFIX} sent_at (PH time): ${philippinesTimestamp}`);
-    
-    const { data: insertedLog, error: logError } = await supabase
-      .from('sms_logs')
-      .insert(logData)
-      .select('id, sent_at, status, message_id, created_at');
-    
-    if (logError) {
-      console.error(`${DEMO_PREFIX} ❌ Database insert error:`, logError.message);
-      
-      // Try simpler insert with PH time
-      const simpleData = {
-        student_id: student.id,
-        phone_number: student.guardian_phone_number.substring(0, 20),
-        message: message.substring(0, 100),
-        scan_type: scanType,
-        provider: 'demo',
-        status: 'sent',
-        sent_at: philippinesTimestamp
-      };
-      
-      const { error: simpleError } = await supabase
-        .from('sms_logs')
-        .insert(simpleData);
-      
-      if (simpleError) {
-        console.error(`${DEMO_PREFIX} ❌ Simple insert also failed:`, simpleError.message);
-      } else {
-        console.log(`${DEMO_PREFIX} ✅ Minimal log entry created with PH time`);
-      }
-    } else {
-      console.log(`${DEMO_PREFIX} ✅ Logged to database successfully. ID:`, insertedLog[0]?.id);
-      console.log(`${DEMO_PREFIX} Database sent_at:`, insertedLog[0]?.sent_at);
-    }
+    await supabase.from('sms_logs').insert(logData);
     
     return {
-      success: true,
+      success: result.success,
       provider: result.provider,
       cost: result.cost,
-      demo: true,
+      demo: result.demo || false,
       messageId: result.messageId,
-      message: 'SMS simulated in local demo mode',
-      warning: 'No real SMS was sent'
+      message: 'SMS processed successfully'
     };
     
   } catch (error) {
-    console.error(`${DEMO_PREFIX} ❌ Error in sendAttendanceSMS:`, error.message);
+    console.error('❌ iProg SMS Error:', error);
     
-    // Log error to sms_errors table
-    const errorLog = {
+    await supabase.from('sms_errors').insert({
       student_id: studentId,
-      error_message: `DEMO ERROR: ${error.message}`,
-      provider: 'demo',
-      scan_type: scanType || null,
-      phone_number: null
-    };
-    
-    try {
-      await supabase.from('sms_errors').insert(errorLog);
-      console.log(`${DEMO_PREFIX} ✅ Error logged to sms_errors`);
-    } catch (dbError) {
-      console.error(`${DEMO_PREFIX} ❌ Failed to log error:`, dbError.message);
-    }
+      error_message: error.message,
+      scan_type: scanType,
+      provider: 'iproig',
+      created_at: new Date().toISOString()
+    });
     
     return {
       success: false,
-      message: `Demo error: ${error.message}`
+      message: `Failed: ${error.message}`
     };
   }
 };
 
-// Rate limit check
 export const shouldSendSMS = async (studentId, scanType) => {
   try {
     const today = new Date().toISOString().split('T')[0];
@@ -284,6 +305,3 @@ export const shouldSendSMS = async (studentId, scanType) => {
     return true;
   }
 };
-
-// Export sendViaIprog for server.js
-export { sendViaIprog };

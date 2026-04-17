@@ -24,22 +24,41 @@ ChartJS.register(
 const BarGraph = ({ teacherId, teacherSections }) => {
   const { gradeStats, loading } = useGradeAttendanceStats(teacherId, teacherSections);
 
-  // Use sorted mock labels for loading state
+  
+  // Use mock labels with "Grade" prefix for loading state
   const mockLabels = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'];
   
   const classData = loading ? {
     labels: mockLabels,
-    present: [0, 0, 0, 0],
-    late: [0, 0, 0, 0],
-    absent: [0, 0, 0, 0],
-    presentCounts: [0, 0, 0, 0],
-    lateCounts: [0, 0, 0, 0],
-    absentCounts: [0, 0, 0, 0],
-    totalStudents: [0, 0, 0, 0]
+    present: [0, 0, 0, 0, 0, 0],
+    late: [0, 0, 0, 0, 0, 0],
+    absent: [0, 0, 0, 0, 0, 0],
+    presentCounts: [0, 0, 0, 0, 0, 0],
+    lateCounts: [0, 0, 0, 0, 0, 0],
+    absentCounts: [0, 0, 0, 0, 0, 0],
+    totalStudents: [0, 0, 0, 0, 0, 0]
   } : gradeStats;
 
+  // Ensure labels have "Grade" prefix even if coming from the hook
+  const formattedLabels = classData.labels?.map(label => {
+    // If label already starts with "Grade", keep it as is
+    if (label.toLowerCase().startsWith('grade')) {
+      return label;
+    }
+    // If it's just a number, add "Grade" prefix
+    if (/^\d+$/.test(label.trim())) {
+      return `Grade ${label}`;
+    }
+    // If it's something like "7", "8", etc., add "Grade" prefix
+    if (/^[7-9]|1[0-2]$/.test(label.trim())) {
+      return `Grade ${label}`;
+    }
+    // For any other format, just add "Grade" prefix
+    return `Grade ${label}`;
+  }) || mockLabels;
+
   const data = {
-    labels: classData.labels,
+    labels: formattedLabels,
     datasets: [
       {
         label: 'Present',
@@ -109,7 +128,6 @@ const BarGraph = ({ teacherId, teacherSections }) => {
             const value = context.raw || 0;
             const dataIndex = context.dataIndex;
             
-            // Get count for this status
             let count = 0;
             if (label === 'Present') {
               count = classData.presentCounts[dataIndex] || 0;
@@ -119,7 +137,6 @@ const BarGraph = ({ teacherId, teacherSections }) => {
               count = classData.absentCounts[dataIndex] || 0;
             }
             
-            // Format: "Present: 60% (6 students)"
             const studentText = count === 1 ? 'student' : 'students';
             return `${label}: ${value}% (${count} ${studentText})`;
           },
@@ -128,7 +145,6 @@ const BarGraph = ({ teacherId, teacherSections }) => {
             const dataIndex = tooltipItems[0].dataIndex;
             const totalStudents = classData.totalStudents?.[dataIndex] || 0;
             
-            // Show grade and total students in title
             if (totalStudents > 0) {
               return `${gradeLabel} - Total: ${totalStudents} student${totalStudents !== 1 ? 's' : ''}`;
             }

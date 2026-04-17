@@ -14,13 +14,11 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 const PieChart = ({ teacherId, teacherSections }) => {
   const { stats, loading } = useAttendanceStats(teacherId, teacherSections);
 
-  // Calculate percentages
   const total = stats.total || 0;
   const presentPercent = total > 0 ? Math.round((stats.presentCount / total) * 100) : 0;
   const latePercent = total > 0 ? Math.round((stats.lateCount / total) * 100) : 0;
   const absentPercent = total > 0 ? Math.round((stats.absentCount / total) * 100) : 0;
 
-  // Use actual data from the hook
   const data = {
     labels: ['Present', 'Late', 'Absent'],
     datasets: [{
@@ -55,13 +53,11 @@ const PieChart = ({ teacherId, teacherSections }) => {
             const label = context.label || '';
             const value = context.raw || 0;
             
-            // Get count for this status
             let count = 0;
             if (label === 'Present') count = stats.presentCount || 0;
             else if (label === 'Late') count = stats.lateCount || 0;
             else if (label === 'Absent') count = stats.absentCount || 0;
             
-            // Format: "Present: 60% (6 students)"
             const studentText = count === 1 ? 'student' : 'students';
             return `${label}: ${value}% (${count} ${studentText})`;
           }

@@ -17,7 +17,6 @@ function DownloadQRModal({
   currentFilter = '',
   currentSection = '',
   currentGrade = '',
-  // Add these props to get grade and section names
   gradesData = [],
   sectionsData = []
 }) {
@@ -26,27 +25,22 @@ function DownloadQRModal({
   
   const selectedCount = selectedStudents.length;
   
-  // Enhanced student objects with proper grade and section names
   const selectedStudentObjects = React.useMemo(() => 
     selectedStudents
       .map(studentId => {
         const student = studentData.find(s => s.id === studentId);
         if (!student) return undefined;
         
-        // Get grade name from gradesData using grade_id
         const grade = gradesData.find(g => g.id === student.grade_id);
         const gradeName = grade ? grade.grade_level : student.grade || 'N/A';
         
-        // Get section name from sectionsData using section_id
         const section = sectionsData.find(s => s.id === student.section_id);
         const sectionName = section ? section.section_name : student.section || 'N/A';
         
         return {
           ...student,
-          // Override with proper names from related tables
           grade: gradeName,
           section: sectionName,
-          // Also keep original IDs if needed
           grade_id: student.grade_id,
           section_id: student.section_id
         };
@@ -89,25 +83,20 @@ function DownloadQRModal({
       type: 'student_attendance'
     });
     
-    // Create a larger canvas for QR code + text below
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    // Set canvas size: QR code (250x250) + space for text below (100px)
     canvas.width = 300;
-    canvas.height = 400; // Extra height for text below
+    canvas.height = 400; 
     
-    // Draw white background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     try {
-      // Create a temporary canvas JUST for the QR code
       const qrCanvas = document.createElement('canvas');
       qrCanvas.width = 250;
       qrCanvas.height = 250;
       
-      // Generate QR code to the temporary canvas
       await QRCode.toCanvas(qrCanvas, qrData, {
         width: 250,
         margin: 1,
@@ -117,34 +106,26 @@ function DownloadQRModal({
         }
       });
       
-      // Position QR code in center of main canvas
       const qrX = (canvas.width - 250) / 2;
-      const qrY = 20; // Top padding
+      const qrY = 20; 
       
-      // Draw QR code onto main canvas
       ctx.drawImage(qrCanvas, qrX, qrY);
       
-      // Draw student info BELOW the QR code
       ctx.fillStyle = '#000000';
       ctx.textAlign = 'center';
       
-      // Student name
       ctx.font = 'bold 18px Arial';
       const fullName = `${student.first_name} ${student.last_name}`;
       ctx.fillText(fullName, canvas.width / 2, qrY + 280);
       
-      // LRN
       ctx.font = '14px Arial';
       ctx.fillText(`LRN: ${student.lrn}`, canvas.width / 2, qrY + 305);
       
-      // Grade and Section - use formatted display values
       ctx.fillText(`Grade ${gradeDisplay} - Section ${sectionDisplay}`, canvas.width / 2, qrY + 330);
       
-      // Type label
       ctx.font = 'italic 12px Arial';
       ctx.fillText('Student Attendance QR Code', canvas.width / 2, qrY + 355);
       
-      // Add a border/separator line
       ctx.beginPath();
       ctx.moveTo(20, qrY + 265);
       ctx.lineTo(canvas.width - 20, qrY + 265);
@@ -152,7 +133,6 @@ function DownloadQRModal({
       ctx.lineWidth = 1;
       ctx.stroke();
       
-      // Convert canvas to Blob
       return new Promise((resolve) => {
         canvas.toBlob((blob) => {
           resolve(blob);
@@ -190,7 +170,6 @@ function DownloadQRModal({
           console.error(`Failed to generate QR for ${student.lrn}:`, err);
         }
         
-        // Add small delay to prevent UI freezing
         await new Promise(resolve => setTimeout(resolve, 50));
       }
       
@@ -237,14 +216,12 @@ function DownloadQRModal({
           downloadLink.click();
           document.body.removeChild(downloadLink);
           
-          // Clean up URL object
           setTimeout(() => URL.revokeObjectURL(url), 100);
           downloadedCount++;
         } catch (err) {
           console.error(`Failed to generate QR for ${student.lrn}:`, err);
         }
         
-        // Add delay between downloads
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       
@@ -283,15 +260,15 @@ function DownloadQRModal({
         
         <div className={styles.buttonGroup}>
           <Button
-            label={isProcessing ? 'Processing...' : 'Download as ZIP'}
-            color="primary"
+            label={isProcessing ? 'Processing...' : 'ZIP'}
+            color="warning"
             onClick={handleDownloadZIP}
             disabled={isProcessing || selectedCount === 0}
-            width="md"
+            width="sm"
             height="sm"
           />
           <Button
-            label={isProcessing ? 'Processing...' : 'Download Individual'}
+            label={isProcessing ? 'Processing...' : 'Individual'}
             color="success"
             onClick={handleDownloadIndividual}
             disabled={isProcessing || selectedCount === 0}

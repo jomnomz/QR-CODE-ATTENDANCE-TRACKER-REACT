@@ -68,7 +68,6 @@ const TeacherTable = ({
 
   const teacherService = useMemo(() => new TeacherService(), []);
 
-  // Fetch teacher assignments when teachers are loaded
   useEffect(() => {
     if (teachers.length > 0) {
       fetchTeacherAssignments();
@@ -554,7 +553,6 @@ const TeacherTable = ({
 
     const assignments = getTeacherAssignments(teacher.id);
 
-    // Format status for plain text display
     const formatStatusText = (status) => {
       if (!status) return 'No Status';
       const statusMap = {

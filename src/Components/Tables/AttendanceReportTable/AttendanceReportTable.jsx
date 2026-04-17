@@ -22,7 +22,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
   const [gradeLevel, setGradeLevel] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Helper functions for date manipulation
   const formatDate = (date, formatStr = 'yyyy-MM-dd') => {
     const d = new Date(date);
     const year = d.getFullYear();
@@ -120,14 +119,12 @@ const AttendanceReportTable = ({ student, currentClass }) => {
     return months;
   };
 
-  // Extract grade level from class name
   const extractGradeLevel = (className) => {
     if (!className) return null;
     const match = className.match(/^(\d+)[-\s]/);
     return match ? match[1] : null;
   };
 
-  // Extract grade level when component mounts or currentClass changes
   useEffect(() => {
     if (currentClass) {
       const grade = extractGradeLevel(currentClass);
@@ -135,7 +132,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
     }
   }, [currentClass]);
 
-  // Load data when dependencies change
   useEffect(() => {
     if (student && gradeLevel) {
       loadReportData();
@@ -179,7 +175,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
         
       if (attendanceError) throw attendanceError;
 
-      // If no attendance data found
       if (!attendance || attendance.length === 0) {
         setAttendanceData([]);
         setLoading(false);
@@ -189,8 +184,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
       let groupedData = [];
       
       if (reportType === 'weekly') {
-        // CRITICAL FIX: Only show dates that ACTUALLY have attendance records
-        // Do NOT generate missing dates
         const attendanceDates = [...new Set(attendance.map(a => a.date))]
           .sort((a, b) => new Date(a) - new Date(b));
         
@@ -209,7 +202,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
           };
         });
       } 
-      // For MONTHLY and YEARLY reports: Group by month
       else {
         const months = eachMonthOfInterval({ start: startDate, end: endDate });
         
@@ -218,16 +210,13 @@ const AttendanceReportTable = ({ student, currentClass }) => {
           const monthEnd = endOfMonth(month);
           const monthStr = formatDate(month, 'MMM yyyy');
           
-          // Get attendance for this month
           const monthAttendance = attendance.filter(a => {
             const recordDate = new Date(a.date);
             return recordDate >= monthStart && recordDate <= monthEnd;
           });
           
-          // Only show months that have attendance records
           if (monthAttendance.length === 0) continue;
           
-          // Count unique days with attendance records
           const uniqueDays = [...new Set(monthAttendance.map(a => a.date))].length;
           
           const presentDays = monthAttendance.filter(a => a.status === 'present').length;
@@ -259,7 +248,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
     }
   };
 
-  // Calculate statistics
   const calculateStats = () => {
     if (reportType === 'weekly') {
       const totalDays = attendanceData.length;
@@ -278,7 +266,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
         attendanceRate
       };
     } else {
-      // For monthly/yearly reports
       const totalDays = attendanceData.reduce((sum, month) => sum + month.schoolDays, 0);
       const totalPresent = attendanceData.reduce((sum, month) => sum + month.present, 0);
       const totalLate = attendanceData.reduce((sum, month) => sum + month.late, 0);
@@ -297,7 +284,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
     }
   };
 
-  // Format time display
   const formatTimeDisplay = (timeString) => {
     if (!timeString) return '-';
     
@@ -312,7 +298,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
     }
   };
 
-  // Get status display with styling
   const getStatusDisplay = (status) => {
     let className = styles.status;
     let text = 'Absent';
@@ -338,7 +323,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
     return { className, text };
   };
 
-  // Get period navigation
   const getPeriodNavigation = () => {
     switch(reportType) {
       case 'weekly':
@@ -402,7 +386,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
     }
   };
 
-  // Filter data based on search term
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return attendanceData;
     
@@ -490,7 +473,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
         </div>
       </div>
 
-      {/* Search and Statistics */}
       <div className={styles.filterRow}>
         <div className={styles.searchContainer}>
           <Input
@@ -525,7 +507,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
         </div>
       </div>
 
-      {/* Table */}
       <div className={styles.tableContainer}>
         <div className={styles.tableWrapper}>
           <table className={styles.attendanceTable}>
@@ -607,7 +588,6 @@ const AttendanceReportTable = ({ student, currentClass }) => {
         </div>
       </div>
 
-      {/* Footer */}
       <div className={styles.footer}>
         <p className={styles.note}>
           <strong>Note:</strong> This report shows ONLY dates with actual attendance records from the database. 

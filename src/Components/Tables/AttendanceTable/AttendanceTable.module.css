@@ -390,7 +390,6 @@ tbody tr {
   min-width: 100px;
 }
 
-/* Column widths for 9 columns (LRN removed) */
 .tableWrapper table th:nth-child(1),
 .tableWrapper table td:nth-child(1) {
   width: 14%;
@@ -449,9 +448,7 @@ tbody tr {
   cursor: pointer;
 }
 
-/* Responsive adjustments */
 @media (max-width: 1400px) {
-  /* Allow horizontal scroll only on mobile */
   .attendanceTableContainer {
     overflow-x: auto;
   }

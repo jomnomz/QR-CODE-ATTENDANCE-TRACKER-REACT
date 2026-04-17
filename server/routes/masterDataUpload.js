@@ -11,7 +11,6 @@ const router = express.Router();
 const csvHeaders = {
   grade: ['Grade', 'grade', 'Grade Level', 'Grade_Level', 'Level'],
   section: ['Section', 'section', 'Section Name', 'Section_Name', 'Class'],
-  room: ['Room', 'room', 'Room Number', 'Room_Number', 'Classroom'],
   subject_code: ['Subject Code', 'subject_code', 'Subject_Code', 'Code'],
   subject_name: ['Subject Name', 'subject_name', 'Subject_Name', 'Subject'],
   class_start: ['Class Start', 'class_start', 'Start Time', 'Start_Time', 'Start'],
@@ -50,10 +49,6 @@ const cleanData = (data) => {
         value = value.replace(/\D/g, '');
       }
       
-      if ((key === 'room' || key === 'room_number') && (!value || value.toLowerCase() === 'null' || value.toLowerCase() === 'n/a' || value === '')) {
-        value = 'TBD';
-      }
-      
       if ((key === 'grace_period' || key.toLowerCase().includes('grace')) && value) {
         const numMatch = value.match(/\d+/);
         value = numMatch ? numMatch[0] : '15';
@@ -70,7 +65,7 @@ const cleanData = (data) => {
 const validateMasterData = (type, data) => {
   const errors = {};
   
-  if (type === 'grades_sections_rooms') {
+  if (type === 'grades_sections') {
     if (!data.grade) errors.grade = 'Grade is required';
     if (!data.section) errors.section = 'Section is required';
     
@@ -126,7 +121,7 @@ const processMasterDataExcel = async (buffer) => {
     console.log(`📑 Found ${sheets.length} sheet(s):`, sheets.map(s => s.name));
 
     const allData = {
-      grades_sections_rooms: [],
+      grades_sections: [],
       subjects: [],
       grade_schedules: []
     };
@@ -196,10 +191,6 @@ const processMasterDataExcel = async (buffer) => {
         'Section Name', 'Section', 'Section_Name', 'section name', 'Class'
       ]) !== '';
       
-      const hasRoom = getValue(headers, [
-        'Room', 'Room Number', 'Room_Number', 'room', 'room number', 'classroom'
-      ]) !== '';
-      
       const hasSubjectCode = getValue(headers, [
         'Subject Code', 'Code', 'Subject_Code', 'subject code'
       ]) !== '';
@@ -211,7 +202,6 @@ const processMasterDataExcel = async (buffer) => {
       console.log(`📋 Sheet "${sheet.name}" analysis:`);
       console.log(`   Has Grade: ${hasGrade}`);
       console.log(`   Has Section: ${hasSection}`);
-      console.log(`   Has Room: ${hasRoom}`);
       console.log(`   Has Class Start: ${hasClassStart}`);
       console.log(`   Has Class End: ${hasClassEnd}`);
       console.log(`   Has Grace Period: ${hasGracePeriod}`);
@@ -245,28 +235,26 @@ const processMasterDataExcel = async (buffer) => {
         console.log(`✅ Extracted ${count} grade schedule records from "${sheet.name}"`);
         
       } else if (hasGrade && hasSection) {
-        console.log(`📊 Processing Grades, Sections & Rooms from sheet: "${sheet.name}"`);
+        console.log(`📊 Processing Grades & Sections from sheet: "${sheet.name}"`);
         
         let count = 0;
         dataRows.forEach((row, index) => {
           const grade = getValue(row, ['Grade Level', 'Grade', 'Grade_Level', 'grade level', 'Level', 'Class']);
           const section = getValue(row, ['Section Name', 'Section', 'Section_Name', 'section name', 'Class']);
-          const room = getValue(row, ['Room', 'Room Number', 'Room_Number', 'room', 'room number', 'classroom']);
           
           if (grade && section) {
-            allData.grades_sections_rooms.push({
+            allData.grades_sections.push({
               grade: grade,
-              section: section,
-              room: room || 'TBD'
+              section: section
             });
             count++;
-            console.log(`   Row ${index + 1}: Grade="${grade}", Section="${section}", Room="${room || 'TBD'}"`);
+            console.log(`   Row ${index + 1}: Grade="${grade}", Section="${section}"`);
           } else if (grade || section) {
             console.log(`   ⚠️ Row ${index + 1}: Incomplete data - Grade="${grade}", Section="${section}"`);
           }
         });
         
-        console.log(`✅ Extracted ${count} grade/section/room records from "${sheet.name}"`);
+        console.log(`✅ Extracted ${count} grade/section records from "${sheet.name}"`);
         
       } else if (hasSubjectCode && hasSubjectName) {
         console.log(`📚 Processing Subjects from sheet: "${sheet.name}"`);
@@ -292,14 +280,14 @@ const processMasterDataExcel = async (buffer) => {
     }
 
     console.log(`\n📈 Extraction Summary:`);
-    console.log(`   Grades/Sections/Rooms: ${allData.grades_sections_rooms.length} records`);
+    console.log(`   Grades/Sections: ${allData.grades_sections.length} records`);
     console.log(`   Subjects: ${allData.subjects.length} records`);
     console.log(`   Grade Schedules: ${allData.grade_schedules.length} records`);
 
-    if (allData.grades_sections_rooms.length > 0) {
-      console.log('\n📝 Sample Grades/Sections/Rooms data (first 3):');
-      allData.grades_sections_rooms.slice(0, 3).forEach((item, i) => {
-        console.log(`   ${i + 1}. Grade: "${item.grade}", Section: "${item.section}", Room: "${item.room}"`);
+    if (allData.grades_sections.length > 0) {
+      console.log('\n📝 Sample Grades/Sections data (first 3):');
+      allData.grades_sections.slice(0, 3).forEach((item, i) => {
+        console.log(`   ${i + 1}. Grade: "${item.grade}", Section: "${item.section}"`);
       });
     }
 
@@ -310,12 +298,12 @@ const processMasterDataExcel = async (buffer) => {
       });
     }
 
-    const hasGradesSectionsRooms = allData.grades_sections_rooms.length > 0;
+    const hasGradesSections = allData.grades_sections.length > 0;
     const hasSubjects = allData.subjects.length > 0;
     const hasGradeSchedules = allData.grade_schedules.length > 0;
 
     const dataTypes = [];
-    if (hasGradesSectionsRooms) dataTypes.push('grades_sections_rooms');
+    if (hasGradesSections) dataTypes.push('grades_sections');
     if (hasSubjects) dataTypes.push('subjects');
     if (hasGradeSchedules) dataTypes.push('grade_schedules');
 
@@ -336,7 +324,7 @@ const processMasterDataExcel = async (buffer) => {
 
 const processMasterDataCSV = async (buffer) => {
   return new Promise((resolve, reject) => {
-    const gradesSectionsRooms = [];
+    const gradesSections = [];
     const subjects = [];
     const gradeSchedules = [];
     
@@ -358,11 +346,9 @@ const processMasterDataCSV = async (buffer) => {
             grace_period: getCsvValue(data, csvHeaders.grace_period) || '15'
           });
         } else if (grade && !classStart) {
-          const room = getCsvValue(data, csvHeaders.room) || 'TBD';
-          gradesSectionsRooms.push({
+          gradesSections.push({
             grade: grade,
-            section: getCsvValue(data, csvHeaders.section),
-            room: room
+            section: getCsvValue(data, csvHeaders.section)
           });
         } else if (subjectCode) {
           subjects.push({
@@ -372,16 +358,16 @@ const processMasterDataCSV = async (buffer) => {
         }
       })
       .on('end', () => {
-        console.log(`CSV Summary: Grades/Sections/Rooms: ${gradesSectionsRooms.length}, Subjects: ${subjects.length}, Grade Schedules: ${gradeSchedules.length}`);
+        console.log(`CSV Summary: Grades/Sections: ${gradesSections.length}, Subjects: ${subjects.length}, Grade Schedules: ${gradeSchedules.length}`);
         
         const data = {
-          grades_sections_rooms: gradesSectionsRooms,
+          grades_sections: gradesSections,
           subjects: subjects,
           grade_schedules: gradeSchedules
         };
         
         const dataTypes = [];
-        if (gradesSectionsRooms.length > 0) dataTypes.push('grades_sections_rooms');
+        if (gradesSections.length > 0) dataTypes.push('grades_sections');
         if (subjects.length > 0) dataTypes.push('subjects');
         if (gradeSchedules.length > 0) dataTypes.push('grade_schedules');
         
@@ -403,208 +389,162 @@ const processMasterDataCSV = async (buffer) => {
   });
 };
 
-const importGradesSectionsRooms = async (data) => {
+const importGradesSections = async (data) => {
   const results = {
-    grades: { inserted: 0, errors: [], details: [] },
-    rooms: { inserted: 0, errors: [], details: [] },
-    sections: { inserted: 0, errors: [], details: [] }
+    grades: { inserted: 0, skipped: 0, errors: [], details: [] },
+    sections: { inserted: 0, skipped: 0, errors: [], details: [] }
   };
   
   try {
-    console.log(`🔄 Starting import of ${data.length} grade/section/room records`);
+    console.log(`🔄 Starting import of ${data.length} grade/section records`);
     
     console.log('First 3 rows of raw data:', data.slice(0, 3));
     
     const cleanedData = data.map(item => {
       const cleaned = cleanData(item);
-      console.log(`Cleaned: ${item.grade} -> "${cleaned.grade}", Section: "${cleaned.section}", Room: "${cleaned.room}"`);
+      console.log(`Cleaned: ${item.grade} -> "${cleaned.grade}", Section: "${cleaned.section}"`);
       return cleaned;
     });
     
     const uniqueGrades = [...new Set(cleanedData.map(item => item.grade))];
-    const uniqueRooms = [...new Set(cleanedData.map(item => item.room || 'TBD'))];
     
     console.log(`📚 Unique grades after cleaning:`, uniqueGrades);
-    console.log(`🏫 Unique rooms after cleaning:`, uniqueRooms);
 
-    console.log('\n🏫 Step 1: Processing rooms...');
-    const roomMap = {}; 
+    console.log('\n🔍 Step 1: Checking existing grades...');
+    const { data: existingGrades, error: existingGradesError } = await supabase
+      .from('grades')
+      .select('id, grade_level')
+      .in('grade_level', uniqueGrades);
     
-    for (const roomName of uniqueRooms) {
-      let cleanedRoom = roomName.toString().trim();
-      if (!cleanedRoom || cleanedRoom === '') {
-        cleanedRoom = 'TBD';
-      }
-      
-      console.log(`📤 Inserting room: "${cleanedRoom}"`);
-      
-      try {
-        const { data: roomData, error: roomError } = await supabase
-          .from('rooms')
-          .insert({ 
-            room_number: cleanedRoom 
-          })
-          .select('id, room_number');
-          
-        if (roomError) {
-          if (roomError.code === '23505') {
-            console.log(`Room "${cleanedRoom}" already exists, fetching ID...`);
-            const { data: existingRoom } = await supabase
-              .from('rooms')
-              .select('id, room_number')
-              .eq('room_number', cleanedRoom)
-              .single();
-              
-            if (existingRoom) {
-              roomMap[cleanedRoom] = existingRoom.id;
-              console.log(`✅ Room "${cleanedRoom}" exists with ID: ${existingRoom.id}`);
-              results.rooms.inserted++;
-            }
-          } else {
-            console.log(`❌ Room insert error for "${cleanedRoom}":`, roomError);
-            results.rooms.errors.push({ room: cleanedRoom, error: roomError.message });
-          }
-        } else if (roomData && roomData.length > 0) {
-          const roomId = roomData[0].id;
-          roomMap[cleanedRoom] = roomId;
-          console.log(`✅ Room "${cleanedRoom}" inserted with ID: ${roomId}`);
-          results.rooms.inserted++;
-          results.rooms.details.push({ room: cleanedRoom, room_id: roomId });
-        }
-      } catch (error) {
-        console.log(`❌ Exception during room insert:`, error);
-        results.rooms.errors.push({ room: cleanedRoom, error: error.message });
-      }
+    if (existingGradesError) {
+      console.error('❌ Error checking existing grades:', existingGradesError);
+      results.grades.errors.push({ error: existingGradesError.message });
     }
-
-    console.log('\n📚 Step 2: Processing grades...');
-    const gradeMap = {}; 
     
-    for (const gradeName of uniqueGrades) {
-      console.log(`📤 Inserting grade: "${gradeName}"`);
-      
-      try {
-        const { data: gradeData, error: gradeError } = await supabase
-          .from('grades')
-          .insert({ 
-            grade_level: gradeName 
-          })
-          .select('id, grade_level');
-          
-        if (gradeError) {
-          if (gradeError.code === '23505') {
-            console.log(`Grade "${gradeName}" already exists, fetching ID...`);
-            const { data: existingGrade } = await supabase
-              .from('grades')
-              .select('id, grade_level')
-              .eq('grade_level', gradeName)
-              .single();
-              
-            if (existingGrade) {
-              gradeMap[gradeName.toLowerCase()] = existingGrade.id;
-              console.log(`✅ Grade "${gradeName}" exists with ID: ${existingGrade.id}`);
-              results.grades.inserted++;
-            }
-          } else {
-            console.log(`❌ Grade insert error for "${gradeName}":`, gradeError);
-            results.grades.errors.push({ grade: gradeName, error: gradeError.message });
-          }
-        } else if (gradeData && gradeData.length > 0) {
-          const gradeId = gradeData[0].id;
-          gradeMap[gradeName.toLowerCase()] = gradeId;
-          console.log(`✅ Grade "${gradeName}" inserted with ID: ${gradeId}`);
+    const existingGradeMap = {};
+    const newGrades = [];
+    
+    existingGrades?.forEach(grade => {
+      existingGradeMap[grade.grade_level] = grade.id;
+    });
+    
+    uniqueGrades.forEach(gradeName => {
+      if (!existingGradeMap[gradeName]) {
+        newGrades.push(gradeName);
+      }
+    });
+    
+    console.log(`📊 Found ${existingGrades?.length || 0} existing grades, ${newGrades.length} new grades`);
+
+    console.log('\n📚 Step 2: Processing new grades...');
+    const gradeMap = { ...existingGradeMap };
+    
+    if (newGrades.length > 0) {
+      console.log(`📤 Inserting ${newGrades.length} new grades...`);
+      const { data: insertedGrades, error: insertError } = await supabase
+        .from('grades')
+        .insert(newGrades.map(gradeName => ({ grade_level: gradeName })))
+        .select('id, grade_level');
+        
+      if (insertError) {
+        console.error('❌ Error inserting new grades:', insertError);
+        results.grades.errors.push({ error: insertError.message });
+      } else {
+        insertedGrades?.forEach(grade => {
+          gradeMap[grade.grade_level] = grade.id;
           results.grades.inserted++;
-          results.grades.details.push({ grade: gradeName, grade_id: gradeId });
-        }
-      } catch (error) {
-        console.log(`❌ Exception during grade insert:`, error);
-        results.grades.errors.push({ grade: gradeName, error: error.message });
+          results.grades.details.push({ grade: grade.grade_level, grade_id: grade.id });
+        });
       }
     }
     
-    console.log('\n📋 Step 3: Processing sections...');
+    results.grades.skipped = existingGrades?.length || 0;
+    console.log(`✅ Grades: ${results.grades.inserted} inserted, ${results.grades.skipped} skipped`);
+
+    console.log('\n🔍 Step 3: Checking existing sections...');
+    const uniqueSections = [];
+    const gradeSectionMap = {};
     
-    for (const cleaned of cleanedData) {
-      console.log(`📝 Processing section: "${cleaned.section}" for grade "${cleaned.grade}" in room "${cleaned.room}"`);
-      
-      const gradeId = gradeMap[cleaned.grade.toLowerCase()];
-      if (!gradeId) {
-        const errorMsg = `Grade "${cleaned.grade}" not found in gradeMap. Available grades: ${Object.keys(gradeMap).join(', ')}`;
-        console.log(`❌ ${errorMsg}`);
-        results.sections.errors.push({ 
-          data: cleaned, 
-          error: errorMsg 
-        });
-        continue;
-      }
-      
-      const roomValue = cleaned.room || 'TBD';
-      const roomId = roomMap[roomValue];
-      if (!roomId) {
-        const errorMsg = `Room "${roomValue}" not found in roomMap. Available rooms: ${Object.keys(roomMap).join(', ')}`;
-        console.log(`❌ ${errorMsg}`);
-        results.sections.errors.push({ 
-          data: cleaned, 
-          error: errorMsg 
-        });
-        continue;
-      }
-      
-      console.log(`📤 Inserting section: "${cleaned.section}" (Grade ID: ${gradeId}, Room ID: ${roomId})`);
-      
-      try {
-        const { data: sectionData, error: sectionError } = await supabase
-          .from('sections')
-          .insert({
+    cleanedData.forEach(item => {
+      const gradeId = gradeMap[item.grade];
+      if (gradeId && item.section) {
+        const key = `${gradeId}_${item.section}`;
+        if (!gradeSectionMap[key]) {
+          gradeSectionMap[key] = true;
+          uniqueSections.push({
             grade_id: gradeId,
-            section_name: cleaned.section,
-            room_id: roomId
-          })
-          .select('id, section_name, grade_id, room_id');
-          
-        if (sectionError) {
-          if (sectionError.code === '23505') {
-            console.log(`✅ Section "${cleaned.section}" already exists for grade "${cleaned.grade}", skipping...`);
-            results.sections.inserted++;
-          } else {
-            console.log(`❌ Section insert error:`, sectionError);
-            results.sections.errors.push({ 
-              data: cleaned, 
-              error: sectionError.message 
-            });
-          }
-        } else if (sectionData && sectionData.length > 0) {
-          console.log(`✅ Section "${cleaned.section}" inserted successfully (ID: ${sectionData[0]?.id})`);
-          results.sections.inserted++;
-          results.sections.details.push({ 
-            grade: cleaned.grade, 
-            section: cleaned.section, 
-            section_id: sectionData[0]?.id,
-            room: cleaned.room,
-            room_id: roomId
+            section: item.section
           });
         }
-      } catch (error) {
-        console.log(`❌ Exception during section insert:`, error);
+      }
+    });
+    
+    console.log(`📊 Processing ${uniqueSections.length} unique grade/section combinations`);
+    
+    let existingSectionsCount = 0;
+    const newSectionsToInsert = [];
+    
+    for (const section of uniqueSections) {
+      const { data: existingSection, error: checkError } = await supabase
+        .from('sections')
+        .select('id')
+        .eq('grade_id', section.grade_id)
+        .eq('section_name', section.section)
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error(`❌ Error checking section "${section.section}":`, checkError);
         results.sections.errors.push({ 
-          data: cleaned, 
-          error: error.message 
+          grade_id: section.grade_id, 
+          section: section.section, 
+          error: checkError.message 
+        });
+      } else if (existingSection) {
+        existingSectionsCount++;
+      } else {
+        newSectionsToInsert.push(section);
+      }
+    }
+    
+    console.log(`📊 Found ${existingSectionsCount} existing sections, ${newSectionsToInsert.length} new sections`);
+
+    console.log('\n📋 Step 4: Processing new sections...');
+    
+    if (newSectionsToInsert.length > 0) {
+      console.log(`📤 Inserting ${newSectionsToInsert.length} new sections...`);
+      const { data: insertedSections, error: insertError } = await supabase
+        .from('sections')
+        .insert(newSectionsToInsert.map(s => ({
+          grade_id: s.grade_id,
+          section_name: s.section
+        })))
+        .select('id, grade_id, section_name');
+        
+      if (insertError) {
+        console.error('❌ Error inserting new sections:', insertError);
+        results.sections.errors.push({ error: insertError.message });
+      } else {
+        insertedSections?.forEach(section => {
+          results.sections.inserted++;
+          results.sections.details.push({ 
+            section_id: section.id,
+            grade_id: section.grade_id,
+            section_name: section.section_name
+          });
         });
       }
     }
     
-    console.log(`\n📊 FINAL IMPORT SUMMARY:`);
-    console.log(`   Grades inserted: ${results.grades.inserted}`);
-    console.log(`   Rooms inserted: ${results.rooms.inserted}`);
-    console.log(`   Sections inserted: ${results.sections.inserted}`);
-    console.log(`   Total errors: ${results.grades.errors.length + results.rooms.errors.length + results.sections.errors.length}`);
+    results.sections.skipped = existingSectionsCount;
     
-    console.log(`Grade map:`, gradeMap);
-    console.log(`Room map:`, roomMap);
+    console.log(`\n📊 FINAL IMPORT SUMMARY:`);
+    console.log(`   Grades: ${results.grades.inserted} inserted, ${results.grades.skipped} skipped`);
+    console.log(`   Sections: ${results.sections.inserted} inserted, ${results.sections.skipped} skipped`);
+    console.log(`   Total errors: ${results.grades.errors.length + results.sections.errors.length}`);
     
     return results;
   } catch (error) {
-    console.error('❌ Error in importGradesSectionsRooms:', error);
+    console.error('❌ Error in importGradesSections:', error);
     throw error;
   }
 };
@@ -612,6 +552,8 @@ const importGradesSectionsRooms = async (data) => {
 const importSubjects = async (data) => {
   const results = {
     inserted: 0,
+    updated: 0,
+    skipped: 0,
     errors: [],
     details: []
   };
@@ -619,46 +561,106 @@ const importSubjects = async (data) => {
   try {
     console.log(`🔄 Starting import of ${data.length} subject records`);
     
-    for (const item of data) {
+    const uniqueSubjects = [];
+    const subjectMap = {};
+    
+    data.forEach(item => {
       const cleaned = cleanData(item);
-      console.log(`📝 Processing subject: "${cleaned.subject_code}" - "${cleaned.subject_name}"`);
+      const key = cleaned.subject_code?.toLowerCase();
+      if (key && !subjectMap[key]) {
+        subjectMap[key] = true;
+        uniqueSubjects.push(cleaned);
+      }
+    });
+    
+    console.log(`📊 Processing ${uniqueSubjects.length} unique subjects`);
+    
+    for (const item of uniqueSubjects) {
+      console.log(`📝 Processing subject: "${item.subject_code}" - "${item.subject_name}"`);
       
-      const errors = validateMasterData('subjects', cleaned);
+      const errors = validateMasterData('subjects', item);
       
       if (Object.keys(errors).length > 0) {
         console.log(`❌ Validation errors:`, errors);
-        results.errors.push({ data: cleaned, errors });
+        results.errors.push({ data: item, errors });
         continue;
       }
       
-      console.log(`📤 Upserting subject: ${cleaned.subject_code}`);
-      const { data: subjectData, error } = await supabase
+      console.log(`🔍 Checking if subject "${item.subject_code}" exists...`);
+      const { data: existingSubject, error: checkError } = await supabase
         .from('subjects')
-        .upsert({
-          subject_code: cleaned.subject_code,
-          subject_name: cleaned.subject_name
-        }, {
-          onConflict: 'subject_code'
-        })
-        .select();
-        
-      if (error) {
-        console.log(`❌ Subject upsert error:`, error);
-        results.errors.push({ data: cleaned, error: error.message });
-      } else if (subjectData && subjectData.length > 0) {
-        console.log(`✅ Subject "${cleaned.subject_code}" upserted successfully (ID: ${subjectData[0]?.id})`);
-        results.inserted++;
-        results.details.push({ 
-          code: cleaned.subject_code, 
-          name: cleaned.subject_name,
-          subject_id: subjectData[0]?.id
-        });
+        .select('subject_code, subject_name')
+        .eq('subject_code', item.subject_code)
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.log(`❌ Error checking subject:`, checkError);
+        results.errors.push({ data: item, error: checkError.message });
+        continue;
+      }
+      
+      if (existingSubject) {
+        if (existingSubject.subject_name === item.subject_name) {
+          console.log(`✅ Subject "${item.subject_code}" already exists with same name, skipping...`);
+          results.skipped++;
+          results.details.push({ 
+            code: item.subject_code, 
+            name: item.subject_name,
+            action: 'skipped',
+            reason: 'Already exists'
+          });
+        } else {
+          console.log(`📝 Subject "${item.subject_code}" exists but name differs, updating...`);
+          const { data: updatedSubject, error: updateError } = await supabase
+            .from('subjects')
+            .update({ 
+              subject_name: item.subject_name,
+              updated_at: new Date().toISOString()
+            })
+            .eq('subject_code', item.subject_code)
+            .select();
+            
+          if (updateError) {
+            console.log(`❌ Subject update error:`, updateError);
+            results.errors.push({ data: item, error: updateError.message });
+          } else {
+            console.log(`✅ Subject "${item.subject_code}" updated successfully`);
+            results.updated++;
+            results.details.push({ 
+              code: item.subject_code, 
+              name: item.subject_name,
+              subject_id: updatedSubject?.[0]?.id,
+              action: 'updated'
+            });
+          }
+        }
       } else {
-        console.log(`⚠️ No subject data returned for "${cleaned.subject_code}"`);
+        console.log(`📤 Inserting new subject: ${item.subject_code}`);
+        const { data: subjectData, error } = await supabase
+          .from('subjects')
+          .insert({
+            subject_code: item.subject_code,
+            subject_name: item.subject_name
+          })
+          .select();
+          
+        if (error) {
+          console.log(`❌ Subject insert error:`, error);
+          results.errors.push({ data: item, error: error.message });
+        } else if (subjectData && subjectData.length > 0) {
+          console.log(`✅ Subject "${item.subject_code}" inserted successfully (ID: ${subjectData[0]?.id})`);
+          results.inserted++;
+          results.details.push({ 
+            code: item.subject_code, 
+            name: item.subject_name,
+            subject_id: subjectData[0]?.id,
+            action: 'inserted'
+          });
+        }
       }
     }
     
-    console.log(`📊 Subject Import Summary: ${results.inserted} inserted, ${results.errors.length} errors`);
+    console.log(`📊 Subject Import Summary: ${results.inserted} inserted, ${results.updated} updated, ${results.skipped} skipped, ${results.errors.length} errors`);
     return results;
   } catch (error) {
     console.error('❌ Error in importSubjects:', error);
@@ -670,6 +672,7 @@ const importGradeSchedules = async (data) => {
   const results = {
     inserted: 0,
     updated: 0,
+    skipped: 0,
     errors: [],
     details: []
   };
@@ -677,87 +680,120 @@ const importGradeSchedules = async (data) => {
   try {
     console.log(`🔄 Starting import of ${data.length} grade schedule records`);
     
-    for (const item of data) {
+    const uniqueSchedules = [];
+    const scheduleMap = {};
+    
+    data.forEach(item => {
       const cleaned = cleanData(item);
-      console.log(`⏰ Processing schedule for grade "${cleaned.grade}": ${cleaned.class_start} - ${cleaned.class_end} (Grace: ${cleaned.grace_period || '15'} min)`);
+      const key = cleaned.grade;
+      if (key && !scheduleMap[key]) {
+        scheduleMap[key] = true;
+        uniqueSchedules.push(cleaned);
+      }
+    });
+    
+    console.log(`📊 Processing ${uniqueSchedules.length} unique grade schedules`);
+    
+    for (const item of uniqueSchedules) {
+      console.log(`⏰ Processing schedule for grade "${item.grade}": ${item.class_start} - ${item.class_end} (Grace: ${item.grace_period || '15'} min)`);
       
-      const errors = validateMasterData('grade_schedules', cleaned);
+      const errors = validateMasterData('grade_schedules', item);
       
       if (Object.keys(errors).length > 0) {
         console.log(`❌ Validation errors:`, errors);
-        results.errors.push({ data: cleaned, errors });
+        results.errors.push({ data: item, errors });
         continue;
       }
       
-      console.log(`🔍 Looking up grade ID for grade level: "${cleaned.grade}"`);
+      console.log(`🔍 Looking up grade ID for grade level: "${item.grade}"`);
       const { data: gradeData, error: gradeError } = await supabase
         .from('grades')
         .select('id, grade_level')
-        .eq('grade_level', cleaned.grade)
+        .eq('grade_level', item.grade)
         .single();
         
       if (gradeError || !gradeData) {
-        const errorMsg = `Grade "${cleaned.grade}" not found in database. Please import grades first.`;
+        const errorMsg = `Grade "${item.grade}" not found in database. Please import grades first.`;
         console.log(`❌ ${errorMsg}`);
         results.errors.push({ 
-          data: cleaned, 
+          data: item, 
           error: errorMsg 
         });
         continue;
       }
       
       const gradeId = gradeData.id;
-      console.log(`✅ Found grade ID ${gradeId} for grade "${cleaned.grade}"`);
+      console.log(`✅ Found grade ID ${gradeId} for grade "${item.grade}"`);
       
       console.log(`🔍 Checking if schedule exists for grade ID: ${gradeId}`);
       const { data: existingSchedule, error: checkError } = await supabase
         .from('grade_schedules')
-        .select('id')
+        .select('id, class_start, class_end, grace_period_minutes')
         .eq('grade_id', gradeId)
         .maybeSingle();
         
       if (checkError && checkError.code !== 'PGRST116') {
         console.log(`❌ Error checking existing schedule:`, checkError);
         results.errors.push({ 
-          data: cleaned, 
+          data: item, 
           error: `Error checking existing schedule: ${checkError.message}` 
         });
         continue;
       }
       
-      const gracePeriod = cleaned.grace_period ? parseInt(cleaned.grace_period) : 15;
+      const gracePeriod = item.grace_period ? parseInt(item.grace_period) : 15;
+      
+      const isSameSchedule = existingSchedule && 
+        existingSchedule.class_start === item.class_start && 
+        existingSchedule.class_end === item.class_end && 
+        existingSchedule.grace_period_minutes === gracePeriod;
       
       if (existingSchedule) {
-        console.log(`📝 Updating existing schedule for grade ID: ${gradeId}`);
-        const { data: scheduleData, error: updateError } = await supabase
-          .from('grade_schedules')
-          .update({
-            class_start: cleaned.class_start,
-            class_end: cleaned.class_end,
-            grace_period_minutes: gracePeriod,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSchedule.id)
-          .select();
-          
-        if (updateError) {
-          console.log(`❌ Schedule update error:`, updateError);
-          results.errors.push({ 
-            data: cleaned, 
-            error: updateError.message 
-          });
-        } else {
-          console.log(`✅ Schedule updated for grade "${cleaned.grade}" (ID: ${existingSchedule.id})`);
-          results.updated++;
+        if (isSameSchedule) {
+          console.log(`✅ Schedule for grade "${item.grade}" already exists with same data, skipping...`);
+          results.skipped++;
           results.details.push({ 
-            grade: cleaned.grade, 
+            grade: item.grade, 
             grade_id: gradeId,
             schedule_id: existingSchedule.id,
-            class_start: cleaned.class_start,
-            class_end: cleaned.class_end,
+            class_start: item.class_start,
+            class_end: item.class_end,
             grace_period: gracePeriod,
-            action: 'updated'
+            action: 'skipped',
+            reason: 'Already exists'
           });
+        } else {
+          console.log(`📝 Updating existing schedule for grade ID: ${gradeId}`);
+          const { data: scheduleData, error: updateError } = await supabase
+            .from('grade_schedules')
+            .update({
+              class_start: item.class_start,
+              class_end: item.class_end,
+              grace_period_minutes: gracePeriod,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingSchedule.id)
+            .select();
+            
+          if (updateError) {
+            console.log(`❌ Schedule update error:`, updateError);
+            results.errors.push({ 
+              data: item, 
+              error: updateError.message 
+            });
+          } else {
+            console.log(`✅ Schedule updated for grade "${item.grade}" (ID: ${existingSchedule.id})`);
+            results.updated++;
+            results.details.push({ 
+              grade: item.grade, 
+              grade_id: gradeId,
+              schedule_id: existingSchedule.id,
+              class_start: item.class_start,
+              class_end: item.class_end,
+              grace_period: gracePeriod,
+              action: 'updated'
+            });
+          }
         }
       } else {
         console.log(`📤 Inserting new schedule for grade ID: ${gradeId}`);
@@ -765,8 +801,8 @@ const importGradeSchedules = async (data) => {
           .from('grade_schedules')
           .insert({
             grade_id: gradeId,
-            class_start: cleaned.class_start,
-            class_end: cleaned.class_end,
+            class_start: item.class_start,
+            class_end: item.class_end,
             grace_period_minutes: gracePeriod
           })
           .select();
@@ -774,18 +810,18 @@ const importGradeSchedules = async (data) => {
         if (insertError) {
           console.log(`❌ Schedule insert error:`, insertError);
           results.errors.push({ 
-            data: cleaned, 
+            data: item, 
             error: insertError.message 
           });
         } else if (scheduleData && scheduleData.length > 0) {
-          console.log(`✅ Schedule inserted for grade "${cleaned.grade}" (ID: ${scheduleData[0]?.id})`);
+          console.log(`✅ Schedule inserted for grade "${item.grade}" (ID: ${scheduleData[0]?.id})`);
           results.inserted++;
           results.details.push({ 
-            grade: cleaned.grade, 
+            grade: item.grade, 
             grade_id: gradeId,
             schedule_id: scheduleData[0]?.id,
-            class_start: cleaned.class_start,
-            class_end: cleaned.class_end,
+            class_start: item.class_start,
+            class_end: item.class_end,
             grace_period: gracePeriod,
             action: 'inserted'
           });
@@ -793,7 +829,7 @@ const importGradeSchedules = async (data) => {
       }
     }
     
-    console.log(`📊 Grade Schedule Import Summary: ${results.inserted} inserted, ${results.updated} updated, ${results.errors.length} errors`);
+    console.log(`📊 Grade Schedule Import Summary: ${results.inserted} inserted, ${results.updated} updated, ${results.skipped} skipped, ${results.errors.length} errors`);
     return results;
   } catch (error) {
     console.error('❌ Error in importGradeSchedules:', error);
@@ -847,8 +883,8 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
     };
 
     const dataTypes = [];
-    if (processedData.grades_sections_rooms && processedData.grades_sections_rooms.length > 0) {
-      dataTypes.push('grades_sections_rooms');
+    if (processedData.grades_sections && processedData.grades_sections.length > 0) {
+      dataTypes.push('grades_sections');
     }
     if (processedData.subjects && processedData.subjects.length > 0) {
       dataTypes.push('subjects');
@@ -858,24 +894,25 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
     }
 
     for (const dataType of dataTypes) {
-      if (dataType === 'grades_sections_rooms') {
+      if (dataType === 'grades_sections') {
         console.log('\n' + '='.repeat(60));
-        console.log('📚 IMPORTING GRADES, SECTIONS & ROOMS');
+        console.log('📚 IMPORTING GRADES & SECTIONS');
         console.log('='.repeat(60));
         
-        const results = await importGradesSectionsRooms(processedData.grades_sections_rooms);
-        importResults.grades_sections_rooms = results;
+        const results = await importGradesSections(processedData.grades_sections);
+        importResults.grades_sections = results;
         
-        responseData.summary.grades = results.grades.inserted;
-        responseData.summary.rooms = results.rooms.inserted;
-        responseData.summary.sections = results.sections.inserted;
-        responseData.summary.totalGradesSectionsRoomsRecords = processedData.grades_sections_rooms.length;
+        responseData.summary.gradesInserted = results.grades.inserted;
+        responseData.summary.gradesSkipped = results.grades.skipped;
+        responseData.summary.sectionsInserted = results.sections.inserted;
+        responseData.summary.sectionsSkipped = results.sections.skipped;
+        responseData.summary.totalGradesSectionsRecords = processedData.grades_sections.length;
         
+        if (results.grades.errors.length > 0) {
+          responseData.errors.grades = results.grades.errors.slice(0, 5);
+        }
         if (results.sections.errors.length > 0) {
           responseData.errors.sections = results.sections.errors.slice(0, 5);
-        }
-        if (results.rooms.errors.length > 0) {
-          responseData.errors.rooms = results.rooms.errors.slice(0, 5);
         }
         
       } else if (dataType === 'subjects') {
@@ -886,8 +923,14 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         const results = await importSubjects(processedData.subjects);
         importResults.subjects = results;
         
-        responseData.summary.subjects = results.inserted;
+        responseData.summary.subjectsInserted = results.inserted;
+        responseData.summary.subjectsUpdated = results.updated;
+        responseData.summary.subjectsSkipped = results.skipped;
         responseData.summary.totalSubjectsRecords = processedData.subjects.length;
+        
+        if (results.errors.length > 0) {
+          responseData.errors.subjects = results.errors.slice(0, 5);
+        }
         
       } else if (dataType === 'grade_schedules') {
         console.log('\n' + '='.repeat(60));
@@ -897,9 +940,9 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
         const results = await importGradeSchedules(processedData.grade_schedules);
         importResults.grade_schedules = results;
         
-        responseData.summary.gradeSchedules = results.inserted + results.updated;
         responseData.summary.gradeSchedulesInserted = results.inserted;
         responseData.summary.gradeSchedulesUpdated = results.updated;
+        responseData.summary.gradeSchedulesSkipped = results.skipped;
         responseData.summary.totalGradeSchedulesRecords = processedData.grade_schedules.length;
         
         if (results.errors.length > 0) {
@@ -916,32 +959,53 @@ router.post('/upload', excelUpload.single('file'), async (req, res) => {
     }
 
     const messages = [];
-    if (responseData.summary.sections) {
-      messages.push(`${responseData.summary.sections} sections`);
+    if (responseData.summary.gradesInserted > 0) {
+      messages.push(`${responseData.summary.gradesInserted} new grades`);
     }
-    if (responseData.summary.grades) {
-      messages.push(`${responseData.summary.grades} grades`);
+    if (responseData.summary.gradesSkipped > 0) {
+      messages.push(`${responseData.summary.gradesSkipped} grades skipped (already exist)`);
     }
-    if (responseData.summary.rooms) {
-      messages.push(`${responseData.summary.rooms} rooms`);
+    if (responseData.summary.sectionsInserted > 0) {
+      messages.push(`${responseData.summary.sectionsInserted} new sections`);
     }
-    if (responseData.summary.subjects) {
-      messages.push(`${responseData.summary.subjects} subjects`);
+    if (responseData.summary.sectionsSkipped > 0) {
+      messages.push(`${responseData.summary.sectionsSkipped} sections skipped (already exist)`);
     }
-    if (responseData.summary.gradeSchedules) {
-      messages.push(`${responseData.summary.gradeSchedules} grade schedules`);
+    if (responseData.summary.subjectsInserted > 0) {
+      messages.push(`${responseData.summary.subjectsInserted} new subjects`);
+    }
+    if (responseData.summary.subjectsUpdated > 0) {
+      messages.push(`${responseData.summary.subjectsUpdated} subjects updated`);
+    }
+    if (responseData.summary.subjectsSkipped > 0) {
+      messages.push(`${responseData.summary.subjectsSkipped} subjects skipped (already exist)`);
+    }
+    if (responseData.summary.gradeSchedulesInserted > 0) {
+      messages.push(`${responseData.summary.gradeSchedulesInserted} new grade schedules`);
+    }
+    if (responseData.summary.gradeSchedulesUpdated > 0) {
+      messages.push(`${responseData.summary.gradeSchedulesUpdated} grade schedules updated`);
+    }
+    if (responseData.summary.gradeSchedulesSkipped > 0) {
+      messages.push(`${responseData.summary.gradeSchedulesSkipped} grade schedules skipped (already exist)`);
     }
     
-    responseData.message = `Imported ${messages.join(', ')}`;
+    if (messages.length > 0) {
+      responseData.message = `Import completed: ${messages.join(', ')}`;
+    } else {
+      responseData.message = 'No new data to import. All records already exist in the system.';
+    }
 
     const totalErrors = 
-      (responseData.summary.totalGradesSectionsRoomsRecords || 0) -
-      ((responseData.summary.sections || 0) + (responseData.summary.grades || 0) + (responseData.summary.rooms || 0)) / 3 +
-      (responseData.summary.totalSubjectsRecords || 0) - (responseData.summary.subjects || 0) +
-      (responseData.summary.totalGradeSchedulesRecords || 0) - (responseData.summary.gradeSchedules || 0);
+      (responseData.summary.totalGradesSectionsRecords || 0) -
+      ((responseData.summary.gradesInserted || 0) + (responseData.summary.gradesSkipped || 0)) +
+      (responseData.summary.totalSubjectsRecords || 0) - 
+      ((responseData.summary.subjectsInserted || 0) + (responseData.summary.subjectsUpdated || 0) + (responseData.summary.subjectsSkipped || 0)) +
+      (responseData.summary.totalGradeSchedulesRecords || 0) - 
+      ((responseData.summary.gradeSchedulesInserted || 0) + (responseData.summary.gradeSchedulesUpdated || 0) + (responseData.summary.gradeSchedulesSkipped || 0));
     
     if (totalErrors > 0) {
-      responseData.warnings.push(`${Math.round(totalErrors)} records had errors and were skipped`);
+      responseData.warnings.push(`${Math.round(totalErrors)} records had errors and were not processed`);
     }
 
     console.log('\n' + '='.repeat(60));

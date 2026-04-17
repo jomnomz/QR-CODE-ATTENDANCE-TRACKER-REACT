@@ -1,4 +1,3 @@
-// DeleteEntityModal.jsx
 import Modal from '../Modal/Modal.jsx';
 import styles from './DeleteEntityModal.module.css';
 import Button from '../../UI/Buttons/Button/Button.jsx';
@@ -11,12 +10,12 @@ import MessageModalLabel from '../../UI/Labels/MessageModalLabel/MessageModalLab
 function DeleteEntityModal({ 
   isOpen, 
   onClose, 
-  entity, // For single deletion
-  selectedEntities = [], // For bulk deletion
-  entityData = [], // For bulk deletion to show names
+  entity, 
+  selectedEntities = [], 
+  entityData = [], 
   onConfirm,
   onConfirmBulk,
-  entityType = 'entity', // 'student', 'teacher', 'subject', etc.
+  entityType = 'entity', 
   entityConfig = {},
   currentFilter = '',
   currentSection = '',
@@ -27,31 +26,25 @@ function DeleteEntityModal({
   const isBulkDelete = selectedEntities.length > 0;
   const deleteCount = isBulkDelete ? selectedEntities.length : 1;
   
-  // Don't render anything if modal is not open OR if it's bulk delete but no entities selected
   if (!isOpen) return null;
   if (!isBulkDelete && !entity) return null; 
 
-  // Get config for this entity type
   const config = {
-    // Default config (for generic entities)
     warningMessage: 'This action cannot be undone.',
     hasAccountField: false,
     hasQRCode: false,
     hasContextInfo: false,
     
-    // Override with entity-specific config
     ...getEntityConfig(entityType),
     ...entityConfig
   };
 
-  // Get selected entity objects
   const selectedEntityObjects = isBulkDelete 
     ? selectedEntities
         .map(entityId => entityData.find(e => e.id === entityId))
         .filter(entity => entity !== undefined)
     : [entity];
 
-  // Check if any entities have accounts (if applicable)
   const hasAccounts = config.hasAccountField && 
     selectedEntityObjects.some(entity => 
       entity.status === 'pending' || entity.status === 'active' || entity.status === 'inactive'
@@ -171,7 +164,6 @@ function DeleteEntityModal({
   );
 }
 
-// Helper function to get entity-specific config
 function getEntityConfig(entityType) {
   const configs = {
     student: {
@@ -203,7 +195,6 @@ function getEntityConfig(entityType) {
   return configs[entityType] || configs.entity;
 }
 
-// Helper function
 function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }

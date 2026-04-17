@@ -16,7 +16,6 @@
   opacity: 1;
 }
 
-/* Position variants */
 .top-right {
   top: 20px;
   right: 20px;
@@ -49,7 +48,6 @@
   transform: translateX(-50%);
 }
 
-/* Type variants */
 .success {
   background-color: #10b981;
   border-left: 4px solid #059669;
@@ -97,7 +95,6 @@
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Animations */
 @keyframes slideIn {
   from {
     transform: translateY(-100px);
@@ -120,7 +117,6 @@
   }
 }
 
-/* For bottom positions */
 .bottom-right,
 .bottom-left,
 .bottom-center {

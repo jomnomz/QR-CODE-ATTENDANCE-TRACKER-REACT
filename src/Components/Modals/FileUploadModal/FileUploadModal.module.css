@@ -2,7 +2,7 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px; /* Increased gap for better spacing */
+  gap: 16px; 
 }
 
 .dropArea {
@@ -65,7 +65,6 @@
     margin-bottom: 8px;
 }
 
-/* UPDATED: Upload actions side by side */
 .uploadActions {
     display: flex;
     gap: 12px;

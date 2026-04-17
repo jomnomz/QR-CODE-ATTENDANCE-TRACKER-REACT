@@ -13,11 +13,11 @@
   gap: 10px;
   margin-bottom: 5px;
   flex-wrap: wrap;
-  align-items: center; /* Align buttons and info vertically */
+  align-items: center; 
 }
 
 .tableInfo {
-  margin-left: 20px; /* Space between buttons and info */
+  margin-left: 20px; 
   padding-bottom: 5px;
 }
 
@@ -214,7 +214,6 @@
   display: none;
 }
 
-/* Column widths matching admin table proportions */
 .tableWrapper table th:nth-child(1),
 .tableWrapper table td:nth-child(1) {
   width: 20%;

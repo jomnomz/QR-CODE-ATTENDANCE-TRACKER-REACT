@@ -6,7 +6,6 @@
   overflow: hidden;
 }
 
-/* Header Grid - 3 Columns */
 .headerGrid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -53,7 +52,6 @@
   border: 1px solid #dee2e6;
 }
 
-/* Search and Filter Row */
 .filterRow {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -187,7 +185,6 @@
   background-color: #e9ecef;
 }
 
-/* Statistics Summary */
 .statsContainer {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -232,7 +229,6 @@
   color: #c92a2a;
 }
 
-/* Attendance Table */
 .tableContainer {
   flex: 1;
   min-height: 0;
@@ -270,7 +266,6 @@
   box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* Centered table headers */
 .attendanceTable th {
   padding: 16px;
   text-align: center;
@@ -282,7 +277,6 @@
   letter-spacing: 0.5px;
 }
 
-/* Centered table cells */
 .attendanceTable td {
   padding: 16px;
   border-bottom: 1px solid #e9ecef;
@@ -295,7 +289,6 @@
   border-bottom: none;
 }
 
-/* Column Widths */
 .lrnColumn, .lrnCell {
   width: 160px;
   min-width: 160px;
@@ -320,7 +313,6 @@
   max-width: 120px;
 }
 
-/* Row styling */
 .rowEven {
   background-color: #ffffff;
 }
@@ -334,7 +326,6 @@
   background-color: #e7f5ff;
 }
 
-/* Status styles */
 .status {
   display: inline-block;
   padding: 6px 12px;
@@ -362,7 +353,6 @@
   color: #c92a2a;
 }
 
-/* No data */
 .noData {
   text-align: center;
   padding: 60px 20px;
@@ -371,7 +361,6 @@
   font-size: 16px;
 }
 
-/* Loading styles */
 .loading {
   display: flex;
   flex-direction: column;
@@ -397,7 +386,6 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Error styles */
 .error {
   padding: 40px;
   text-align: center;
@@ -429,14 +417,12 @@
   background-color: #339af0;
 }
 
-/* Cell specific styles */
 .lrnCell, .nameCell, .timeCell, .statusCell {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Custom scrollbar */
 .tableWrapper::-webkit-scrollbar {
   width: 8px;
   height: 8px;

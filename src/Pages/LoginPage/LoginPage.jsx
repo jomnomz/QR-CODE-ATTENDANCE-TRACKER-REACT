@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../Components/Authentication/AuthProvider/AuthProvider";
 import styles from "./LoginPage.module.css";
-import LoginForm from "../../Components/forms/LoginForm/LoginForm";
+import LoginForm from "../../Components/Forms/LoginForm/LoginForm";
 import stoninoschool from "../../assets/sto nino school.png";
 
 const LoginPage = () => {

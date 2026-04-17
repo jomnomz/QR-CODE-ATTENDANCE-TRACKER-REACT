@@ -1317,7 +1317,6 @@ router.get('/teacher-classes/:teacherId', async (req, res) => {
     
     console.log(`📚 Fetching classes for teacher ID: ${teacherId}`);
     
-    // Get teacher's email from teachers table first (for verification)
     const { data: teacherData, error: teacherError } = await supabase
       .from('teachers')
       .select('email_address, first_name, last_name')
@@ -1334,7 +1333,6 @@ router.get('/teacher-classes/:teacherId', async (req, res) => {
     
     console.log(`👤 Teacher: ${teacherData.first_name} ${teacherData.last_name} (${teacherData.email_address})`);
     
-    // Get all classes where the teacher teaches (from teacher_subject_sections)
     const { data: classesData, error: classesError } = await supabase
       .from('teacher_subject_sections')
       .select(`
@@ -1360,7 +1358,6 @@ router.get('/teacher-classes/:teacherId', async (req, res) => {
     
     console.log(`✅ Found ${classesData?.length || 0} classes for teacher ${teacherId}`);
     
-    // Format the data for frontend
     const formattedClasses = (classesData || []).map((item, index) => {
       const grade = item.section?.grade?.grade_level || 'Unknown';
       const sectionName = item.section?.section_name || 'Unknown';
@@ -1372,7 +1369,7 @@ router.get('/teacher-classes/:teacherId', async (req, res) => {
         className: `${grade}-${sectionName}`,
         subject: subjectName,
         subjectCode: subjectCode,
-        schoolYear: "SY 2024-2025", // You might want to make this dynamic
+        schoolYear: "SY 2024-2025", 
         grade: grade,
         section: sectionName,
         initialColor: getColorForIndex(index)
@@ -1399,7 +1396,6 @@ router.get('/teacher-classes/:teacherId', async (req, res) => {
   }
 });
 
-// Also add this endpoint to get teacher ID by email (useful for frontend)
 router.get('/get-teacher-id-by-email', async (req, res) => {
   try {
     const { email } = req.query;
@@ -1445,21 +1441,20 @@ router.get('/get-teacher-id-by-email', async (req, res) => {
   }
 });
 
-// Helper function for colors
 function getColorForIndex(index) {
   const colors = [
-    '#FFB73B', // Default orange
-    '#7EC384', // Green
-    '#3598DB', // Blue
-    '#9C27B0', // Purple
-    '#F44336', // Red
-    '#FF9800', // Orange
-    '#4CAF50', // Green
-    '#2196F3', // Light Blue
-    '#673AB7', // Deep Purple
-    '#E91E63', // Pink
-    '#795548', // Brown
-    '#607D8B', // Blue Grey
+    '#FFB73B', 
+    '#7EC384', 
+    '#3598DB', 
+    '#9C27B0', 
+    '#F44336', 
+    '#FF9800', 
+    '#4CAF50', 
+    '#2196F3', 
+    '#673AB7', 
+    '#E91E63', 
+    '#795548', 
+    '#607D8B', 
   ];
   return colors[index % colors.length];
 }

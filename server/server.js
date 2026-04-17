@@ -1,21 +1,20 @@
-// server.js - Main Express Server for Attendance SMS System
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { supabase } from './config/supabase.js';
 import { sendAttendanceSMS, formatPhoneForIprog, checkIprogBalance } from './services/iProgService.js';
 
-// IMPORT THE ROUTERS
+// IMPORT THE MASTER DATA ROUTE
 import studentUploadRouter from './routes/studentUpload.js';
 import teacherUploadRouter from './routes/teacherUpload.js';
-import teacherInviteRouter from './routes/teacherInvite.js'; // ADD THIS LINE
+import teacherInviteRouter from './routes/teacherInvite.js'; 
+import masterDataUploadRouter from './routes/masterDataUpload.js';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -24,20 +23,18 @@ app.use(cors({
 
 app.use(express.json());
 
-// MOUNT ALL THE ROUTERS
+// USE THE MASTER DATA ROUTE
 app.use('/api/students', studentUploadRouter);
 app.use('/api/teachers', teacherUploadRouter);
-app.use('/api/teacher-invite', teacherInviteRouter); // ADD THIS LINE
+app.use('/api/teacher-invite', teacherInviteRouter); 
+app.use('/api/master-data', masterDataUploadRouter);
 
-// Request logging middleware
 app.use((req, res, next) => {
   console.log(`📨 ${req.method} ${req.url}`);
   next();
 });
 
-// ========== IPROG SMS ENDPOINTS ==========
 
-// Root endpoint - server status
 app.get('/', async (req, res) => {
   const balance = await checkIprogBalance();
   
@@ -52,7 +49,6 @@ app.get('/', async (req, res) => {
   });
 });
 
-// Health check
 app.get('/api/health', async (req, res) => {
   const balance = await checkIprogBalance();
   
@@ -74,7 +70,6 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-// Check iProg balance/info
 app.get('/api/iproig/balance', async (req, res) => {
   try {
     const balance = await checkIprogBalance();
@@ -102,7 +97,6 @@ app.get('/api/iproig/balance', async (req, res) => {
   }
 });
 
-// Main SMS endpoint for attendance
 app.post('/api/attendance/sms', async (req, res) => {
   try {
     const { studentId, scanType } = req.body;
@@ -144,7 +138,6 @@ app.post('/api/attendance/sms', async (req, res) => {
   }
 });
 
-// Test SMS endpoint
 app.post('/api/test-iproig-sms', async (req, res) => {
   try {
     const { phone, studentId } = req.body;
@@ -191,7 +184,6 @@ app.post('/api/test-iproig-sms', async (req, res) => {
     
     const message = `📱 [IPROG TEST] Magandang araw ${guardianName}! Ito ay test message mula sa iProg SMS. Oras: ${phTime}, Petsa: ${phDate}.`;
     
-    // Send via iProg or demo mode
     let result;
     if (process.env.IPROG_API_TOKEN) {
       try {
@@ -199,7 +191,6 @@ app.post('/api/test-iproig-sms', async (req, res) => {
         result = await sendViaIprog(testPhone, message);
       } catch (error) {
         console.log('⚠️ iProg failed, using demo mode:', error.message);
-        // Use demo mode if iProg fails
         result = {
           success: true,
           provider: 'iproig (demo)',
@@ -209,7 +200,6 @@ app.post('/api/test-iproig-sms', async (req, res) => {
         };
       }
     } else {
-      // No API token, use demo
       result = {
         success: true,
         provider: 'iproig (demo)',
@@ -242,7 +232,6 @@ app.post('/api/test-iproig-sms', async (req, res) => {
   }
 });
 
-// Webhook for automated attendance SMS
 app.post('/api/webhooks/attendance', async (req, res) => {
   try {
     const { student_id, scan_type } = req.body;
@@ -250,7 +239,6 @@ app.post('/api/webhooks/attendance', async (req, res) => {
     if (student_id && scan_type) {
       console.log(`🤖 Auto-SMS triggered for student ${student_id}, ${scan_type}`);
       
-      // Send async to avoid blocking the webhook response
       sendAttendanceSMS(student_id, scan_type)
         .then(result => {
           console.log(`🤖 Auto-SMS result: ${result.success ? '✅' : '❌'} (Provider: ${result.provider})`);
@@ -267,7 +255,32 @@ app.post('/api/webhooks/attendance', async (req, res) => {
   }
 });
 
-// ========== DEBUG ENDPOINTS ==========
+// NEW: Student sync endpoint (for manual triggering if needed)
+app.post('/api/admin/sync-students', async (req, res) => {
+  try {
+    console.log('🔄 Manual student sync triggered via API');
+    
+    // We'll create a simple sync function here instead of importing from frontend
+    const syncResult = await syncStudentTextFields();
+    
+    res.json({
+      success: syncResult.success,
+      message: syncResult.success 
+        ? `Synced ${syncResult.updated || 0} students` 
+        : 'Sync failed',
+      updated: syncResult.updated || 0,
+      errors: syncResult.errors || 0,
+      error: syncResult.error
+    });
+    
+  } catch (error) {
+    console.error('❌ Sync API error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
 
 app.get('/api/debug/teacher/:id', async (req, res) => {
   try {
@@ -322,9 +335,7 @@ app.get('/api/debug/find-teacher', async (req, res) => {
   }
 });
 
-// ========== ERROR HANDLING ==========
 
-// 404 handler for undefined routes
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -332,7 +343,6 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error('❌ Server error:', err);
   res.status(500).json({
@@ -341,14 +351,125 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ========== START SERVER ==========
+// Student sync function - defined directly in server
+const syncStudentTextFields = async () => {
+  console.log('🔄 Starting student data sync...');
+  
+  try {
+    // Get all students with their current data
+    const { data: students, error: fetchError } = await supabase
+      .from('students')
+      .select('*');
+    
+    if (fetchError) {
+      console.error('❌ Error fetching students:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+    
+    let updatedCount = 0;
+    let errorCount = 0;
+    
+    // Update each student
+    for (const student of students) {
+      try {
+        const updates = {};
+        let needsUpdate = false;
+        
+        // Sync grade text from grade_id
+        if (student.grade_id) {
+          const { data: grade, error: gradeError } = await supabase
+            .from('grades')
+            .select('grade_level')
+            .eq('id', student.grade_id)
+            .single();
+          
+          if (!gradeError && grade && grade.grade_level !== student.grade) {
+            updates.grade = grade.grade_level;
+            needsUpdate = true;
+            console.log(`📝 Student ${student.id}: Syncing grade "${student.grade}" → "${grade.grade_level}"`);
+          }
+        }
+        
+        // Sync section text from section_id
+        if (student.section_id) {
+          const { data: section, error: sectionError } = await supabase
+            .from('sections')
+            .select('section_name')
+            .eq('id', student.section_id)
+            .single();
+          
+          if (!sectionError && section && section.section_name !== student.section) {
+            updates.section = section.section_name;
+            needsUpdate = true;
+            console.log(`📝 Student ${student.id}: Syncing section "${student.section}" → "${section.section_name}"`);
+          }
+        }
+        
+        // Update if needed
+        if (needsUpdate) {
+          const { error: updateError } = await supabase
+            .from('students')
+            .update(updates)
+            .eq('id', student.id);
+          
+          if (updateError) {
+            console.error(`❌ Error updating student ${student.id}:`, updateError);
+            errorCount++;
+          } else {
+            updatedCount++;
+            console.log(`✅ Student ${student.id} synced successfully`);
+          }
+        }
+      } catch (err) {
+        console.error(`❌ Error processing student ${student.id}:`, err);
+        errorCount++;
+      }
+    }
+    
+    console.log(`📊 Sync completed: ${updatedCount} students updated, ${errorCount} errors`);
+    return { 
+      success: true, 
+      updated: updatedCount, 
+      errors: errorCount 
+    };
+    
+  } catch (error) {
+    console.error('❌ Sync failed:', error);
+    return { success: false, error: error.message };
+  }
+};
 
-app.listen(port, '0.0.0.0', () => {
+// Student sync function
+const runStudentSync = async () => {
+  try {
+    console.log('🔄 Starting student data sync on server startup...');
+    const result = await syncStudentTextFields();
+    
+    if (result.success) {
+      console.log(`✅ Student sync completed: ${result.updated || 0} students updated`);
+      if (result.errors > 0) {
+        console.log(`⚠️ ${result.errors} errors occurred during sync`);
+      }
+    } else {
+      console.error('❌ Student sync failed:', result.error);
+    }
+  } catch (error) {
+    console.error('❌ Error during student sync:', error);
+  }
+};
+
+// Start server with sync
+app.listen(port, '0.0.0.0', async () => {
   console.log(`
   ============================================
   🚀 TEACHER MANAGEMENT SERVER STARTED ON PORT ${port}
   ============================================
+  `);
   
+  // Run student sync on startup
+  await runStudentSync();
+  
+  console.log(`
   ✅ AVAILABLE ENDPOINTS:
   
   TEACHER UPLOAD:
@@ -356,6 +477,11 @@ app.listen(port, '0.0.0.0', () => {
   
   STUDENT UPLOAD:
   POST /api/students/upload               - Upload student data
+  
+  MASTER DATA UPLOAD:
+  POST /api/master-data/upload            - Upload master data (grades, sections, subjects)
+  GET  /api/master-data/template          - Download master data template
+  GET  /api/master-data/health            - Health check
   
   TEACHER ACCOUNT MANAGEMENT (TEACHER-INVITE):
   POST /api/teacher-invite/invite         - Invite teacher with Resend email
@@ -377,6 +503,9 @@ app.listen(port, '0.0.0.0', () => {
   GET  /api/iproig/balance      - Check iProg info
   POST /api/attendance/sms      - Send attendance SMS
   POST /api/test-iproig-sms     - Test SMS
+  
+  ADMIN:
+  POST /api/admin/sync-students - Sync student text fields with foreign keys
   
   DEBUG:
   GET  /api/debug/teacher/:id   - Check teacher by ID
@@ -403,4 +532,17 @@ app.listen(port, '0.0.0.0', () => {
   console.log('💡 Quick Test Teacher Upload:');
   console.log('curl -X POST http://localhost:5000/api/teachers/upload \\');
   console.log('  -F "file=@teachers.xlsx"');
+  console.log('');
+  console.log('💡 Quick Test Student Upload:');
+  console.log('curl -X POST http://localhost:5000/api/students/upload \\');
+  console.log('  -F "file=@students.xlsx"');
+  console.log('');
+  console.log('💡 Quick Test Master Data Upload:');
+  console.log('curl -X POST http://localhost:5000/api/master-data/upload \\');
+  console.log('  -F "file=@master-data.xlsx"');
+  console.log('');
+  console.log('💡 Manual Student Sync (if needed):');
+  console.log('curl -X POST http://localhost:5000/api/admin/sync-students');
+  console.log('');
+  console.log('🚀 Server is ready to accept connections!');
 });

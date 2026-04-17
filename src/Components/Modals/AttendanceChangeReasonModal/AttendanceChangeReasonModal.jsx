@@ -1,4 +1,3 @@
-// Components/Attendance/AttendanceChangeReasonModal.jsx
 import React, { useState } from 'react';
 import styles from './AttendanceChangeReasonModal.module.css';
 import { supabase } from '../../../lib/supabase';
@@ -46,7 +45,6 @@ const AttendanceChangeReasonModal = ({
         throw new Error('User not authenticated');
       }
 
-      // Create attendance change request
       const { data, error } = await supabase
         .from('attendance_change_requests')
         .insert({
@@ -55,17 +53,14 @@ const AttendanceChangeReasonModal = ({
           student_lrn: attendanceData.lrn,
           date: attendanceData.date,
           
-          // Original data - if the record doesn't exist, these will be null
           original_time_in: attendanceData.time_in,
           original_time_out: attendanceData.time_out,
           original_status: attendanceData.status,
           
-          // Requested changes
           requested_time_in: attendanceData.time_in,
           requested_time_out: attendanceData.time_out,
           requested_status: attendanceData.status,
           
-          // Request details
           reason: reason.trim(),
           requested_by: user.id,
           status: 'pending'

@@ -35,7 +35,7 @@ function Modal({
       xxxl: { 
     width: "1300px", 
     maxWidth: "95vw", 
-    height: "90vh",  // Increased from 85vh
+    height: "90vh",  
     maxHeight: "90vh" 
   },
     full: { width: "95vw", maxWidth: "95vw", height: "90vh", maxHeight: "90vh" }

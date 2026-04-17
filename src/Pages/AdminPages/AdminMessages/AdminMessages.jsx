@@ -40,29 +40,38 @@ function AdminMessages() {
 
       if (error) throw error;
 
-      // Extract unique dates (YYYY-MM-DD format)
+      // Extract unique dates (YYYY-MM-DD format) - PH time
       const uniqueDates = [...new Set(smsDates?.map(item => {
         const date = new Date(item.sent_at);
-        // Convert to PH time
         const phDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
         return phDate.toISOString().split('T')[0];
       }) || [])];
 
-      setAvailableDates(uniqueDates);
+      // Get today's date in PH time
+      const today = getCurrentPhilippinesDate();
+      
+      // Combine today's date with existing dates
+      // Remove duplicates and ensure today is first
+      const allDates = [...new Set([today, ...uniqueDates])];
+      
+      // Sort by date (newest first)
+      allDates.sort((a, b) => new Date(b) - new Date(a));
 
-      // Set default to today if not set
-      if (!selectedDate && uniqueDates.length > 0) {
-        const today = getCurrentPhilippinesDate();
-        const todayExists = uniqueDates.includes(today);
-        setSelectedDate(todayExists ? today : uniqueDates[0]);
-      }
+      setAvailableDates(allDates);
+
+      // Set default to today
+      setSelectedDate(today);
+      
     } catch (err) {
       console.error('Error fetching dates:', err);
-      setAvailableDates([]);
+      // Still show today even if fetch fails
+      const today = getCurrentPhilippinesDate();
+      setAvailableDates([today]);
+      setSelectedDate(today);
     } finally {
       setDatesLoading(false);
     }
-  }, [selectedDate, getCurrentPhilippinesDate]);
+  }, [getCurrentPhilippinesDate]);
 
   // Handle date selection
   const handleDateSelect = useCallback((date) => {

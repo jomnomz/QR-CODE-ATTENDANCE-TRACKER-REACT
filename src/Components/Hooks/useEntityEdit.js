@@ -14,7 +14,6 @@ export const useEntityEdit = (entities, setEntities, entityType = 'student', ref
     setValidationErrors({});
     
     if (entityType === 'student') {
-      // Ensure grade is just a number (clean up any "Grade " prefix)
       let grade = entity.grade;
       if (grade && typeof grade === 'string' && grade.includes('Grade ')) {
         grade = grade.replace('Grade ', '');
@@ -25,7 +24,7 @@ export const useEntityEdit = (entities, setEntities, entityType = 'student', ref
         first_name: entity.first_name,
         middle_name: entity.middle_name,
         last_name: entity.last_name,
-        grade: grade,  // Just "7", "8", etc.
+        grade: grade,  
         section: entity.section,
         email: entity.email,
         phone_number: entity.phone_number,
@@ -140,7 +139,6 @@ export const useEntityEdit = (entities, setEntities, entityType = 'student', ref
         const entity = entities.find(e => e.id === entityId);
         if (entity && editFormData.grade) {
           let originalGrade = entity.grade;
-          // Clean up original grade if it has "Grade " prefix
           if (typeof originalGrade === 'string' && originalGrade.includes('Grade ')) {
             originalGrade = originalGrade.replace('Grade ', '');
           }

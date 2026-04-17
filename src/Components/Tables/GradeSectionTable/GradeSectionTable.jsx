@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styles from './GradeSectionTable.module.css';
 import { EntityService } from '../../../Utils/EntityService';
-import { useRowExpansion } from '../../hooks/useRowExpansion';
+import { StudentService } from '../../../Utils/EntityService';
+import { useRowExpansion } from '../../Hooks/useRowExpansion';
 import DeleteEntityModal from '../../Modals/DeleteEntityModal/DeleteEntityModal';
 import { useToast } from '../../Toast/ToastContext/ToastContext';
 import { supabase } from '../../../lib/supabase';
@@ -14,7 +15,6 @@ import {
 import { faCircle as farCircleRegular } from "@fortawesome/free-regular-svg-icons";
 import { compareSections } from '../../../Utils/CompareHelpers';
 
-// Date formatter function
 const formatDateTimeLocal = (dateString) => {
   if (!dateString) return 'N/A';
   
@@ -54,6 +54,104 @@ const sortGradeSections = (sections) => {
   });
 };
 
+// Function to update students when a grade section changes
+const updateStudentsForSectionChange = async (oldSection, newGrade, newSection, sectionId) => {
+  try {
+    console.log('🔄 Updating students for section change:', { 
+      oldSection, 
+      newGrade, 
+      newSection, 
+      sectionId 
+    });
+
+    // Find students with this section_id
+    const { data: students, error: fetchError } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, grade, section, grade_id, section_id')
+      .eq('section_id', sectionId);
+
+    if (fetchError) {
+      console.error('❌ Error fetching students:', fetchError);
+      throw fetchError;
+    }
+
+    console.log(`📊 Found ${students?.length || 0} students in section ${oldSection}`);
+
+    if (!students || students.length === 0) {
+      return { success: true, updated: 0 };
+    }
+
+    // Update each student
+    const updates = students.map(student => ({
+      id: student.id,
+      updates: {
+        grade: newGrade.toString(), // Update text grade field
+        section: newSection, // Update text section field
+        grade_id: null, // We'll set this after finding the grade
+        // section_id remains the same (it's already the foreign key)
+      }
+    }));
+
+    // Find the grade ID for the new grade
+    const { data: gradeData, error: gradeError } = await supabase
+      .from('grades')
+      .select('id, grade_level')
+      .eq('grade_level', newGrade)
+      .single();
+
+    if (gradeError) {
+      console.error('❌ Error finding grade:', gradeError);
+      throw gradeError;
+    }
+
+    const gradeId = gradeData?.id;
+
+    // Perform batch update
+    let updatedCount = 0;
+    const errors = [];
+
+    for (const studentUpdate of updates) {
+      try {
+        const finalUpdates = {
+          ...studentUpdate.updates,
+          grade_id: gradeId, // Set the correct grade_id
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabase
+          .from('students')
+          .update(finalUpdates)
+          .eq('id', studentUpdate.id);
+
+        if (updateError) {
+          errors.push(`Student ${studentUpdate.id}: ${updateError.message}`);
+        } else {
+          updatedCount++;
+        }
+      } catch (err) {
+        errors.push(`Student ${studentUpdate.id}: ${err.message}`);
+      }
+    }
+
+    console.log(`✅ Updated ${updatedCount} students for section change`);
+
+    if (errors.length > 0) {
+      console.error('⚠️ Errors during student updates:', errors);
+      return { 
+        success: false, 
+        updated: updatedCount, 
+        errors: errors 
+      };
+    }
+
+    return { success: true, updated: updatedCount };
+
+  } catch (error) {
+    console.error('❌ Error in updateStudentsForSectionChange:', error);
+    throw error;
+  }
+};
+
 const GradeSectionTable = ({ 
   searchTerm = '',
   onSelectedGradeSectionsUpdate,
@@ -73,20 +171,20 @@ const GradeSectionTable = ({
   const [editFormData, setEditFormData] = useState({});
   const [saving, setSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [updatingStudents, setUpdatingStudents] = useState(false);
   
   const { expandedRow, toggleRow, isRowExpanded, tableRef } = useRowExpansion();
   const { success, error: toastError } = useToast();
   
   const sectionService = new EntityService('sections');
   const gradeService = new EntityService('grades');
+  const studentService = new StudentService();
 
-  // Fetch function for grade sections
   const fetchGradeSections = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Fetch all grades for dropdown
       const { data: allGrades, error: gradesError } = await supabase
         .from('grades')
         .select('id, grade_level')
@@ -97,7 +195,6 @@ const GradeSectionTable = ({
         throw gradesError;
       }
       
-      // Fetch sections with grade information
       const { data, error } = await supabase
         .from('sections')
         .select(`
@@ -114,18 +211,15 @@ const GradeSectionTable = ({
       
       setGrades(allGrades || []);
       
-      // Transform data to flatten structure
       const transformedData = (data || []).map(item => ({
         id: item.id,
         grade: item.grade?.grade_level || 'N/A',
         section: item.section_name || 'N/A',
         created_at: item.created_at,
         updated_at: item.updated_at,
-        grade_id: item.grade_id,
-        room_id: item.room_id
+        grade_id: item.grade_id
       }));
       
-      // Sort the data numerically by grade
       const sortedData = sortGradeSections(transformedData);
       
       setGradeSections(sortedData);
@@ -140,14 +234,15 @@ const GradeSectionTable = ({
     }
   };
   
-  // Edit functions
   const startEdit = (gradeSection) => {
     setEditingId(gradeSection.id);
     setValidationErrors({});
     
     setEditFormData({
       grade: gradeSection.grade.toString(),
-      section: gradeSection.section || ''
+      section: gradeSection.section || '',
+      originalGrade: gradeSection.grade,
+      originalSection: gradeSection.section
     });
   };
 
@@ -163,7 +258,6 @@ const GradeSectionTable = ({
       [field]: value
     }));
     
-    // Clear validation error for this field if it exists
     if (validationErrors[field]) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
@@ -173,7 +267,6 @@ const GradeSectionTable = ({
     }
   };
 
-  // Validate form data
   const validateForm = () => {
     const errors = {};
     
@@ -190,14 +283,12 @@ const GradeSectionTable = ({
     return errors;
   };
 
-  // Save edit function
   const handleSaveEdit = async (gradeSectionId, e) => {
     if (e) e.stopPropagation();
     
     try {
       setSaving(true);
       
-      // Validate form data
       const errors = validateForm();
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
@@ -205,7 +296,6 @@ const GradeSectionTable = ({
         return { success: false };
       }
       
-      // Find the grade ID from the selected grade level
       const selectedGrade = grades.find(g => 
         g.grade_level.toString() === editFormData.grade
       );
@@ -214,14 +304,19 @@ const GradeSectionTable = ({
         throw new Error(`Grade ${editFormData.grade} not found`);
       }
       
-      // Prepare update data
+      // Prepare section update data
       const updateData = {
         grade_id: selectedGrade.id,
         section_name: editFormData.section.trim(),
         updated_at: new Date().toISOString()
       };
       
-      // Try direct supabase update first to see errors
+      // Check if we need to update students (if grade or section name changed)
+      const sectionBeforeEdit = gradeSections.find(s => s.id === gradeSectionId);
+      const gradeChanged = sectionBeforeEdit?.grade !== editFormData.grade;
+      const sectionNameChanged = sectionBeforeEdit?.section !== editFormData.section.trim();
+      
+      // Update the section first
       const { data: updatedSection, error: updateError } = await supabase
         .from('sections')
         .update(updateData)
@@ -230,23 +325,44 @@ const GradeSectionTable = ({
         .single();
       
       if (updateError) {
-        // Check for unique constraint violation
         if (updateError.code === '23505') {
           if (updateError.message.includes('sections_grade_id_section_name_key')) {
             throw new Error(`Section "${editFormData.section}" already exists in Grade ${editFormData.grade}`);
-          } else if (updateError.message.includes('sections_room_id_key')) {
-            throw new Error('Room is already assigned to another section');
           }
         }
         
         throw new Error(updateError.message || 'Failed to update grade section');
       }
       
-      // Update local state with the returned data
+      // Update students if grade or section name changed
+      if ((gradeChanged || sectionNameChanged) && sectionBeforeEdit) {
+        try {
+          setUpdatingStudents(true);
+          const studentUpdateResult = await updateStudentsForSectionChange(
+            sectionBeforeEdit.section,
+            editFormData.grade,
+            editFormData.section.trim(),
+            gradeSectionId
+          );
+          
+          if (studentUpdateResult.success) {
+            console.log(`✅ Successfully updated ${studentUpdateResult.updated} students`);
+          } else {
+            console.warn('⚠️ Student updates had issues:', studentUpdateResult.errors);
+            toastError(`Updated section but had issues with some students`);
+          }
+        } catch (studentError) {
+          console.error('❌ Error updating students:', studentError);
+          toastError('Updated section but failed to update some student records');
+        } finally {
+          setUpdatingStudents(false);
+        }
+      }
+      
+      // Update local state
       setGradeSections(prevSections => {
         const updatedSections = prevSections.map(section => {
           if (section.id === gradeSectionId) {
-            // Find the grade info for this section
             const gradeInfo = grades.find(g => g.id === updatedSection.grade_id);
             return {
               ...section,
@@ -262,12 +378,11 @@ const GradeSectionTable = ({
         return updatedSections;
       });
       
-      success('Grade section updated successfully');
+      success(`Grade section updated successfully${gradeChanged || sectionNameChanged ? ' (students updated)' : ''}`);
       
-      // Cancel edit mode
       cancelEdit();
       
-      // Optional: Refresh from server to ensure consistency
+      // Refresh data after a short delay
       setTimeout(() => {
         fetchGradeSections();
       }, 500);
@@ -286,7 +401,6 @@ const GradeSectionTable = ({
     }
   };
 
-  // Initial fetch and real-time subscription
   useEffect(() => {
     fetchGradeSections();
     
@@ -310,7 +424,6 @@ const GradeSectionTable = ({
     };
   }, []);
 
-  // Filter and sort grade sections based on search term
   const filteredGradeSections = sortGradeSections(
     gradeSections.filter(section => {
       const searchLower = searchTerm.toLowerCase();
@@ -324,7 +437,6 @@ const GradeSectionTable = ({
     })
   );
 
-  // Handle individual grade section selection
   const handleGradeSectionSelect = (gradeSectionId, e) => {
     e.stopPropagation();
     const newSelected = selectedGradeSections.includes(gradeSectionId)
@@ -336,7 +448,6 @@ const GradeSectionTable = ({
     }
   };
 
-  // Handle select all
   const handleSelectAll = () => {
     const allVisibleIds = filteredGradeSections.map(gs => gs.id);
     const allSelected = allVisibleIds.every(id => selectedGradeSections.includes(id));
@@ -353,7 +464,6 @@ const GradeSectionTable = ({
   const allVisibleSelected = filteredGradeSections.length > 0 && 
     filteredGradeSections.every(gs => selectedGradeSections.includes(gs.id));
 
-  // Delete handler
   const handleDeleteClick = (gradeSection, e) => {
     e.stopPropagation();
     if (onSingleDeleteClick) {
@@ -364,11 +474,9 @@ const GradeSectionTable = ({
     }
   };
 
-  // Confirm delete
   const handleConfirmDelete = async (id) => {
     setIsDeleting(true);
     try {
-      // Cancel edit if deleting the same item
       if (editingId === id) {
         cancelEdit();
       }
@@ -376,7 +484,6 @@ const GradeSectionTable = ({
       await sectionService.delete(id);
       success('Grade section deleted successfully');
       fetchGradeSections();
-      // Remove from selected if it was selected
       const newSelected = selectedGradeSections.filter(selectedId => selectedId !== id);
       if (onSelectedGradeSectionsUpdate) {
         onSelectedGradeSectionsUpdate(newSelected);
@@ -390,30 +497,30 @@ const GradeSectionTable = ({
     }
   };
 
-  // Edit handler
   const handleEditClick = (gradeSection, e) => {
     e.stopPropagation();
     startEdit(gradeSection);
   };
 
-  // Render edit cell
   const renderEditCell = (gradeSection) => (
     <div className={styles.editCell}>
       {editingId === gradeSection.id ? (
         <div className={styles.editActions}>
           <button 
             onClick={(e) => handleSaveEdit(gradeSection.id, e)}
-            disabled={saving}
+            disabled={saving || updatingStudents}
             className={styles.saveBtn}
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving || updatingStudents ? (
+              updatingStudents ? 'Updating Students...' : 'Saving...'
+            ) : 'Save'}
           </button>
           <button 
             onClick={(e) => {
               e.stopPropagation();
               cancelEdit();
             }}
-            disabled={saving}
+            disabled={saving || updatingStudents}
             className={styles.cancelBtn}
           >
             Cancel
@@ -476,14 +583,12 @@ const GradeSectionTable = ({
     </div>
   );
   
-  // Error state
   if (error) return (
     <div className={styles.gradeSectionTableContainer}>
       <div className={styles.error}>Error: {error}</div>
     </div>
   );
 
-  // Get table info message
   const getTableInfoMessage = () => {
     const sectionCount = filteredGradeSections.length;
     const selectedCount = selectedGradeSections.length;
@@ -495,7 +600,6 @@ const GradeSectionTable = ({
     return `Showing ${sectionCount} grade section/s${selectedCount > 0 ? ` (${selectedCount} selected)` : ''}`;
   };
 
-  // Render regular row (only shows when NOT expanded)
   const renderRegularRow = (gradeSection, rowColorClass, visibleRowIndex, isSelected) => {
     const isEditing = editingId === gradeSection.id;
     
@@ -574,6 +678,9 @@ const GradeSectionTable = ({
       {/* Table info */}
       <div className={styles.tableInfo}>
         <p>{getTableInfoMessage()}</p>
+        {updatingStudents && (
+          <p className={styles.syncNote}>Updating student records...</p>
+        )}
       </div>
 
       <div className={styles.tableWrapper}>

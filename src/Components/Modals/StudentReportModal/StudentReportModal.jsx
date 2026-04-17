@@ -171,7 +171,6 @@ const StudentReportModal = ({ isOpen, onClose, student, currentClass }) => {
 
       const dateFormat = 'yyyy-MM-dd';
       
-      // 1. Get student attendance for the period
       const { data: attendance, error: attendanceError } = await supabase
         .from('attendance')
         .select('*')
@@ -188,7 +187,6 @@ const StudentReportModal = ({ isOpen, onClose, student, currentClass }) => {
       console.log('📊 Attendance data found:', attendance?.length || 0, 'records');
       console.log('📅 Dates in attendance data:', attendance?.map(a => a.date).sort() || []);
 
-      // 2. Get teacher's configured school days for this grade
       const { data: schoolDays, error: schoolDaysError } = await supabase
         .from('class_school_days')
         .select('date')
@@ -201,16 +199,13 @@ const StudentReportModal = ({ isOpen, onClose, student, currentClass }) => {
         console.error('Error fetching school days:', schoolDaysError);
       }
 
-      // Store school days data in state
       setSchoolDaysData(schoolDays || []);
 
-      // Create a Set of valid school days
       const validSchoolDays = new Set(schoolDays?.map(item => item.date) || []);
       
       console.log('📚 Valid school days configured by teacher:', Array.from(validSchoolDays).sort());
       console.log('📚 Total valid school days:', validSchoolDays.size);
 
-      // 3. If no attendance data found, return empty
       if (!attendance || attendance.length === 0) {
         console.log('No attendance data found for period');
         setAttendanceData([]);
@@ -223,9 +218,8 @@ const StudentReportModal = ({ isOpen, onClose, student, currentClass }) => {
       let summaryData = null;
       
       if (reportType === 'weekly') {
-        // Get all dates that have attendance AND are valid school days
         const attendanceDates = [...new Set(attendance.map(a => a.date))]
-          .filter(date => validSchoolDays.has(date)) // CRITICAL: Filter by teacher's configuration
+          .filter(date => validSchoolDays.has(date)) 
           .sort((a, b) => new Date(a) - new Date(b));
         
         console.log('✅ Showing only these dates (with attendance AND valid school days):', attendanceDates);
@@ -243,7 +237,6 @@ const StudentReportModal = ({ isOpen, onClose, student, currentClass }) => {
           };
         });
         
-        // Calculate summary based on valid school days with attendance
         const totalDays = groupedData.length;
         
         if (totalDays > 0) {
@@ -262,19 +255,16 @@ const StudentReportModal = ({ isOpen, onClose, student, currentClass }) => {
         }
       } 
       else {
-        // For MONTHLY report: Show only the selected month
         const monthStart = startOfMonth(currentPeriod);
         const monthEnd = endOfMonth(currentPeriod);
         const monthStr = formatDate(currentPeriod, 'MMM yyyy');
         
-        // Get attendance for this month
         const monthAttendance = attendance.filter(a => {
           const recordDate = new Date(a.date);
           return recordDate >= monthStart && recordDate <= monthEnd;
         });
         
         if (monthAttendance.length > 0) {
-          // Filter attendance days to only include valid school days
           const validAttendanceDays = monthAttendance
             .filter(a => validSchoolDays.has(a.date))
             .map(a => a.date);
@@ -306,7 +296,6 @@ const StudentReportModal = ({ isOpen, onClose, student, currentClass }) => {
           }
         }
         
-        // Calculate summary for the month
         const totalDays = groupedData.reduce((sum, month) => sum + month.schoolDays, 0);
         const totalPresent = groupedData.reduce((sum, month) => sum + month.present, 0);
         const totalLate = groupedData.reduce((sum, month) => sum + month.late, 0);

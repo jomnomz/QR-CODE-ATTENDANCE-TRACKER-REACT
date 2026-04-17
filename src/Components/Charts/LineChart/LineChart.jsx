@@ -26,7 +26,6 @@ ChartJS.register(
 const LineChart = ({ teacherId, teacherSections }) => {
   const { weeklyStats, loading } = useWeeklyAttendanceStats(teacherId, teacherSections);
 
-  // Generate dates for the last 5 days (for loading/fallback)
   const generateDates = () => {
     const dates = [];
     for (let i = 4; i >= 0; i--) {
@@ -37,7 +36,6 @@ const LineChart = ({ teacherId, teacherSections }) => {
     return dates;
   };
 
-  // Use real data or loading state
   const dates = loading ? generateDates() : weeklyStats.dates;
   const presentData = loading ? [0, 0, 0, 0, 0] : weeklyStats.present;
   const lateData = loading ? [0, 0, 0, 0, 0] : weeklyStats.late;

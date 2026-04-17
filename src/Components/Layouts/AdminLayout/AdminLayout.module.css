@@ -3,5 +3,5 @@
   width: 100%;
   box-sizing: border-box;
   min-height: 100vh;
-  overflow-x: hidden; /* ADD THIS */
+  overflow-x: hidden; 
 }

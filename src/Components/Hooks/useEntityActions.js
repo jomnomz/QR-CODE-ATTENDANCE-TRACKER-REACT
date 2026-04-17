@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { StudentService, TeacherService } from '../../Utils/EntityService';
 
-// Base entity actions hook
 const useBaseEntityActions = (entityType) => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState(null);
@@ -43,7 +42,6 @@ const useBaseEntityActions = (entityType) => {
   };
 };
 
-// Student-specific actions
 export const useStudentActions = (setStudents) => {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -103,7 +101,6 @@ export const useStudentActions = (setStudents) => {
   };
 };
 
-// Teacher-specific actions
 export const useTeacherActions = (setTeachers) => {
   const baseActions = useBaseEntityActions('teacher');
 

@@ -63,7 +63,7 @@
 
 .entityDetails {
   flex: 1;
-  min-width: 0; /* Ensure text truncation works */
+  min-width: 0; 
 }
 
 .entityName {
@@ -79,7 +79,6 @@
   font-weight: 600;
 }
 
-/* Single entity variant styles */
 .singleEntityContainer {
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -102,7 +101,6 @@
   font-weight: 500;
 }
 
-/* Entity type specific styles */
 .entityItem[data-entity-type="student"] {
   border-left: 3px solid #3b82f6;
 }
@@ -133,7 +131,6 @@
   border-left: 3px solid #14b8a6;
 }
 
-/* Compact variant for when you need to show many items */
 .entityList.compact .entityItem {
   padding: 8px 12px;
 }
@@ -147,7 +144,6 @@
   min-width: 20px;
 }
 
-/* Entity badges for better visual distinction */
 .entityBadge {
   display: inline-block;
   padding: 2px 8px;

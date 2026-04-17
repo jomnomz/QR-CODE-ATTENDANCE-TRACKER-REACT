@@ -1,4 +1,3 @@
-// src/Hooks/useUser.jsx
 import { useState, useEffect, useContext, createContext } from 'react';
 import { supabase } from '../../lib/supabase';
 
@@ -45,7 +44,6 @@ export const UserProvider = ({ children }) => {
             
             if (userError) {
               console.error('Error fetching user data:', userError);
-              // Even if we can't get user data, we still have the auth user
               setUser({
                 ...session.user,
                 user_id: session.user.id,
@@ -60,7 +58,6 @@ export const UserProvider = ({ children }) => {
             }
           } catch (fetchError) {
             console.error('Error in user fetch:', fetchError);
-            // Fallback to just auth user
             setUser({
               ...session.user,
               user_id: session.user.id,

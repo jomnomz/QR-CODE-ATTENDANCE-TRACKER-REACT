@@ -24,7 +24,6 @@ ChartJS.register(
 const TeacherBarGraph = ({ teacherId, teacherSections, teacherClasses }) => {
   const { classStats, loading } = useTeacherClassAttendance(teacherId, teacherClasses);
 
-  // Calculate percentages for each class
   const calculatePercentages = () => {
     return classStats.map(stat => {
       const total = stat.total || 0;
@@ -47,7 +46,6 @@ const TeacherBarGraph = ({ teacherId, teacherSections, teacherClasses }) => {
 
   const percentageData = calculatePercentages();
   
-  // Extract data from real stats
   const classLabels = percentageData.map(stat => stat.className);
   const presentData = percentageData.map(stat => stat.present);
   const lateData = percentageData.map(stat => stat.late);
@@ -94,7 +92,6 @@ const TeacherBarGraph = ({ teacherId, teacherSections, teacherClasses }) => {
             size: 12
           },
           callback: function(value, index, values) {
-            // Truncate long class names
             const label = this.getLabelForValue(value);
             if (label.length > 15) {
               return label.substring(0, 15) + '...';

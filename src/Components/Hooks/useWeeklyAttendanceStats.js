@@ -32,13 +32,11 @@ export const useWeeklyAttendanceStats = (teacherId, teacherSections) => {
     setError(null);
     
     try {
-      // Get last 5 days including today
       const dates = [];
       for (let i = 4; i >= 0; i--) {
         dates.push(getPhilippinesDate(i));
       }
 
-      // Get students based on teacher sections if provided
       let studentsQuery = supabase
         .from('students')
         .select('lrn');
@@ -52,7 +50,6 @@ export const useWeeklyAttendanceStats = (teacherId, teacherSections) => {
       if (studentsError) throw studentsError;
       
       if (!students || students.length === 0) {
-        // If no students found
         const emptyStats = {
           dates: dates.map(formatDateLabel),
           present: [0, 0, 0, 0, 0],
@@ -69,7 +66,6 @@ export const useWeeklyAttendanceStats = (teacherId, teacherSections) => {
       
       const studentLRNs = students.map(student => student.lrn);
       
-      // Get attendance records for the last 5 days
       const { data: attendanceRecords, error: attendanceError } = await supabase
         .from('attendance')
         .select('date, status')
@@ -79,7 +75,6 @@ export const useWeeklyAttendanceStats = (teacherId, teacherSections) => {
 
       if (attendanceError) throw attendanceError;
 
-      // Initialize stats
       const stats = {
         dates: dates.map(formatDateLabel),
         present: [],
@@ -91,12 +86,10 @@ export const useWeeklyAttendanceStats = (teacherId, teacherSections) => {
         hasRecords: []
       };
 
-      // Process each date
       dates.forEach((date, index) => {
         const dateRecords = attendanceRecords?.filter(record => record.date === date) || [];
         
         if (dateRecords.length === 0) {
-          // No records for this date
           stats.present.push(0);
           stats.late.push(0);
           stats.absent.push(0);
@@ -107,7 +100,6 @@ export const useWeeklyAttendanceStats = (teacherId, teacherSections) => {
           return;
         }
 
-        // Count statuses for this date
         let presentCount = 0;
         let lateCount = 0;
         let absentCount = 0;
@@ -120,7 +112,6 @@ export const useWeeklyAttendanceStats = (teacherId, teacherSections) => {
 
         const total = presentCount + lateCount + absentCount;
         
-        // Calculate percentages
         const presentPercent = total > 0 ? Math.round((presentCount / total) * 100) : 0;
         const latePercent = total > 0 ? Math.round((lateCount / total) * 100) : 0;
         const absentPercent = total > 0 ? Math.round((absentCount / total) * 100) : 0;
@@ -154,7 +145,6 @@ export const useWeeklyAttendanceStats = (teacherId, teacherSections) => {
   useEffect(() => {
     fetchWeeklyAttendanceStats();
     
-    // Subscribe to real-time updates
     const subscription = supabase
       .channel('weekly-attendance-stats')
       .on(

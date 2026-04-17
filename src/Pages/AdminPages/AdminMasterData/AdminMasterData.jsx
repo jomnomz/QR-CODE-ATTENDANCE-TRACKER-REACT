@@ -19,7 +19,6 @@ function AdminMasterData() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   
-  // Tab state
   const [activeTab, setActiveTab] = useState('gradeSections');
   
   const [gradeSectionSearch, setGradeSectionSearch] = useState('');
@@ -198,11 +197,11 @@ function AdminMasterData() {
   const getSearchPlaceholder = () => {
     switch (activeTab) {
       case 'gradeSections':
-        return "Search grades, sections, or rooms...";
+        return "Search Grade and Section Records...";
       case 'subjects':
-        return "Search subject codes or names...";
+        return "Search Subject Records...";
       case 'schedules':
-        return "Search grade levels or times...";
+        return "Search Grade Schedules Records...";
       default:
         return "Search...";
     }

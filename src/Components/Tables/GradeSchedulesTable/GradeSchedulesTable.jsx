@@ -14,7 +14,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faCircle as farCircleRegular } from "@fortawesome/free-regular-svg-icons";
 
-// Time formatter function - returns AM/PM format
 const formatTimeAMPM = (timeString) => {
   if (!timeString) return 'N/A';
   
@@ -33,7 +32,6 @@ const formatTimeAMPM = (timeString) => {
   }
 };
 
-// Format duration (minutes to readable format)
 const formatDuration = (minutes) => {
   if (!minutes && minutes !== 0) return 'N/A';
   
@@ -49,7 +47,6 @@ const formatDuration = (minutes) => {
   }
 };
 
-// Date formatter function
 const formatDateTimeLocal = (dateString) => {
   if (!dateString) return 'N/A';
   
@@ -74,7 +71,6 @@ const formatDateTimeLocal = (dateString) => {
   }
 };
 
-// Sorting function for schedules (numerical grade sorting)
 const sortSchedules = (schedules) => {
   return [...schedules].sort((a, b) => {
     const gradeA = parseInt(a.grade_level) || 0;
@@ -84,7 +80,6 @@ const sortSchedules = (schedules) => {
   });
 };
 
-// Calculate total class duration
 const calculateClassDuration = (startTime, endTime) => {
   if (!startTime || !endTime) return 0;
   
@@ -95,9 +90,8 @@ const calculateClassDuration = (startTime, endTime) => {
     let startTotal = startHours * 60 + startMinutes;
     let endTotal = endHours * 60 + endMinutes;
     
-    // Handle overnight classes (e.g., 20:00 to 02:00)
     if (endTotal < startTotal) {
-      endTotal += 24 * 60; // Add 24 hours
+      endTotal += 24 * 60; 
     }
     
     return endTotal - startTotal;
@@ -106,7 +100,6 @@ const calculateClassDuration = (startTime, endTime) => {
   }
 };
 
-// Validation function for schedule data
 const validateScheduleData = (data) => {
   const errors = {};
   
@@ -159,13 +152,11 @@ const GradeSchedulesTable = ({
   const scheduleService = new EntityService('grade_schedules');
   const gradeService = new EntityService('grades');
 
-  // Fetch function for grade schedules
   const fetchSchedules = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Fetch ALL grades first to check what exists
       const { data: allGrades, error: gradesError } = await supabase
         .from('grades')
         .select('id, grade_level')
@@ -173,7 +164,6 @@ const GradeSchedulesTable = ({
       
       if (gradesError) throw gradesError;
       
-      // Fetch schedules with grade information
       const { data: schedulesData, error: schedulesError } = await supabase
         .from('grade_schedules')
         .select(`
@@ -188,14 +178,12 @@ const GradeSchedulesTable = ({
       
       setGrades(allGrades || []);
       
-      // Transform the data to include grade level in the schedule object
       const transformedSchedules = (schedulesData || []).map(schedule => ({
         ...schedule,
         grade_level: schedule.grades?.grade_level || 'Unknown',
         grade_id: schedule.grades?.id || null
       }));
       
-      // Sort the data numerically by grade
       const sortedData = sortSchedules(transformedSchedules);
       
       setSchedules(sortedData);
@@ -210,7 +198,6 @@ const GradeSchedulesTable = ({
     }
   };
   
-  // Custom entity edit hook for schedules
   const [editingId, setEditingId] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [saving, setSaving] = useState(false);
@@ -240,7 +227,6 @@ const GradeSchedulesTable = ({
       [field]: value
     }));
     
-    // Clear validation error for this field if it exists
     if (validationErrors[field]) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
@@ -250,19 +236,16 @@ const GradeSchedulesTable = ({
     }
   };
 
-  // Save edit function for schedules
   const saveEdit = async (scheduleId) => {
     try {
       setSaving(true);
       
-      // Validate form data
       const errors = validateScheduleData(editFormData);
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
         throw new Error('Please fix the validation errors');
       }
       
-      // Find the grade ID from the selected grade level
       const selectedGrade = grades.find(g => 
         g.grade_level.toString() === editFormData.grade_level
       );
@@ -271,7 +254,6 @@ const GradeSchedulesTable = ({
         throw new Error(`Grade ${editFormData.grade_level} not found`);
       }
       
-      // Check if this grade already has a schedule (excluding current one)
       const existingSchedule = schedules.find(s => 
         s.grade_id === selectedGrade.id && s.id !== scheduleId
       );
@@ -280,7 +262,6 @@ const GradeSchedulesTable = ({
         throw new Error(`Grade ${editFormData.grade_level} already has a schedule. Each grade can only have one schedule.`);
       }
       
-      // Prepare update data
       const updateData = {
         grade_id: selectedGrade.id,
         class_start: editFormData.class_start,
@@ -289,10 +270,8 @@ const GradeSchedulesTable = ({
         updated_at: new Date().toISOString()
       };
       
-      // Update in database
       const updatedSchedule = await scheduleService.update(scheduleId, updateData);
       
-      // Update local state
       setSchedules(prevSchedules => {
         return prevSchedules.map(schedule => {
           if (schedule.id === scheduleId) {
@@ -315,7 +294,6 @@ const GradeSchedulesTable = ({
     } catch (err) {
       console.error('Error updating schedule:', err);
       
-      // If it's not a validation error, show toast
       if (err.message !== 'Please fix the validation errors') {
         toastError(`Failed to update schedule: ${err.message}`);
       }
@@ -329,11 +307,9 @@ const GradeSchedulesTable = ({
     }
   };
 
-  // Initial fetch and real-time subscription
   useEffect(() => {
     fetchSchedules();
     
-    // Subscribe to changes in grade_schedules table
     const scheduleSubscription = supabase
       .channel('grade-schedules-changes')
       .on(
@@ -349,7 +325,6 @@ const GradeSchedulesTable = ({
       )
       .subscribe();
     
-    // Also subscribe to grades table changes
     const gradeSubscription = supabase
       .channel('grades-changes')
       .on(
@@ -371,7 +346,6 @@ const GradeSchedulesTable = ({
     };
   }, []);
 
-  // Filter and sort schedules based on search term
   const filteredSchedules = sortSchedules(
     schedules.filter(schedule => {
       const searchLower = searchTerm.toLowerCase();
@@ -389,7 +363,6 @@ const GradeSchedulesTable = ({
     })
   );
 
-  // Handle individual schedule selection
   const handleScheduleSelect = (scheduleId, e) => {
     e.stopPropagation();
     const newSelected = selectedSchedules.includes(scheduleId)
@@ -401,7 +374,6 @@ const GradeSchedulesTable = ({
     }
   };
 
-  // Handle select all
   const handleSelectAll = () => {
     const allVisibleIds = filteredSchedules.map(schedule => schedule.id);
     const allSelected = allVisibleIds.every(id => selectedSchedules.includes(id));
@@ -418,7 +390,6 @@ const GradeSchedulesTable = ({
   const allVisibleSelected = filteredSchedules.length > 0 && 
     filteredSchedules.every(schedule => selectedSchedules.includes(schedule.id));
 
-  // Delete handler
   const handleDeleteClick = (schedule, e) => {
     e.stopPropagation();
     if (onSingleDeleteClick) {
@@ -429,14 +400,12 @@ const GradeSchedulesTable = ({
     }
   };
 
-  // Confirm delete
   const handleConfirmDelete = async (id) => {
     setIsDeleting(true);
     try {
       await scheduleService.delete(id);
       success('Schedule deleted successfully');
       fetchSchedules();
-      // Remove from selected if it was selected
       const newSelected = selectedSchedules.filter(selectedId => selectedId !== id);
       if (onSelectedSchedulesUpdate) {
         onSelectedSchedulesUpdate(newSelected);
@@ -450,7 +419,6 @@ const GradeSchedulesTable = ({
     }
   };
 
-  // Edit handlers
   const handleEditClick = (schedule, e) => {
     e.stopPropagation();
     startEdit(schedule);
@@ -461,7 +429,6 @@ const GradeSchedulesTable = ({
     await saveEdit(id);
   };
 
-  // Render edit cell
   const renderEditCell = (schedule) => (
     <div className={styles.editCell}>
       {editingId === schedule.id ? (
@@ -496,7 +463,6 @@ const GradeSchedulesTable = ({
     </div>
   );
 
-  // Render expanded row with details
   const renderExpandedRow = (schedule) => {
     const addedAt = formatDateTimeLocal(schedule.created_at);
     const updatedAt = schedule.updated_at ? formatDateTimeLocal(schedule.updated_at) : 'Never updated';
@@ -536,21 +502,18 @@ const GradeSchedulesTable = ({
     );
   };
 
-  // Loading state
   if (loading) return (
     <div className={styles.scheduleTableContainer}>
       <div className={styles.loading}>Loading grade schedules...</div>
     </div>
   );
   
-  // Error state
   if (error) return (
     <div className={styles.scheduleTableContainer}>
       <div className={styles.error}>Error: {error}</div>
     </div>
   );
 
-  // Get table info message
   const getTableInfoMessage = () => {
     const scheduleCount = filteredSchedules.length;
     const selectedCount = selectedSchedules.length;
@@ -562,7 +525,6 @@ const GradeSchedulesTable = ({
     return `Showing ${scheduleCount} grade schedule/s${selectedCount > 0 ? ` (${selectedCount} selected)` : ''}`;
   };
 
-  // Render regular row (only shows when NOT expanded)
   const renderRegularRow = (schedule, rowColorClass, visibleRowIndex, isSelected) => {
     const isEditing = editingId === schedule.id;
     
@@ -671,7 +633,6 @@ const GradeSchedulesTable = ({
 
   return (
     <div className={styles.scheduleTableContainer} ref={tableRef}>
-      {/* Table info */}
       <div className={styles.tableInfo}>
         <p>{getTableInfoMessage()}</p>
       </div>
@@ -718,13 +679,10 @@ const GradeSchedulesTable = ({
 
                 return (
                   <React.Fragment key={schedule.id}>
-                    {/* Only show regular row if NOT expanded */}
                     {!isRowExpanded(schedule.id) && (
                       renderRegularRow(schedule, rowColorClass, visibleRowIndex, isSelected)
                     )}
-                    {/* Always render expanded row (it will be hidden if not active) */}
                     {renderExpandedRow(schedule)}
-                    {/* ERROR ROW - Only when editing has errors */}
                     {editingId === schedule.id && Object.keys(validationErrors).length > 0 && (
                       <tr className={styles.errorRow}>
                         <td colSpan="7" className={styles.errorMessages}>

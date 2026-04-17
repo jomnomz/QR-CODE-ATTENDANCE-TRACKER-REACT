@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRowExpansion } from '../../Hooks/useRowExpansion'; 
-import { grades, shouldHandleRowClick } from '../../../Utils/tableHelpers';
+import { grades, shouldHandleRowClick } from '../../../Utils/TableHelpers';
 import { formatStudentName, formatDate, formatNA, formatAttendanceStatus } from '../../../Utils/Formatters'; 
 import { sortEntities } from '../../../Utils/SortEntities'; 
 import Button from '../../UI/Buttons/Button/Button';
@@ -12,7 +12,6 @@ import { faPenToSquare, faTimes } from "@fortawesome/free-solid-svg-icons";
 import { useToast } from '../../Toast/ToastContext/ToastContext';
 import { supabase } from '../../../lib/supabase';
 
-// Custom Time Picker component
 const TimePicker = ({ value, onChange, name }) => {
   const handleChange = (e) => {
     const newTime = e.target.value;
@@ -132,7 +131,6 @@ const AttendanceTable = ({
     }
   }, []);
 
-  // Calculate status
   const calculateStatus = useCallback(async (timeIn, studentGrade) => {
     if (!timeIn) return { status: 'absent', shouldClearTimes: false };
     
@@ -203,7 +201,6 @@ const AttendanceTable = ({
     }
   }, []);
 
-  // Edit functions
   const startEdit = useCallback((attendance) => {
     setEditingId(attendance.id);
     setEditFormData({
@@ -310,7 +307,6 @@ const AttendanceTable = ({
       
       cancelEdit();
       
-      // Refresh data for current date and class
       await fetchAttendanceForDate(selectedDate, currentClass);
       
     } catch (error) {
@@ -321,7 +317,6 @@ const AttendanceTable = ({
     }
   }, [validateForm, editFormData, calculateStatus, cancelEdit, selectedDate, currentClass, fetchAttendanceForDate, toastError, success]);
 
-  // Event handlers
   const handleClassChange = useCallback((className) => {
     changeClass(className);
     toggleRow(null);
@@ -374,7 +369,6 @@ const AttendanceTable = ({
     };
   }, []);
 
-  // Calculate stats for the parent component
   const calculateStats = useCallback((filteredData) => {
     const stats = {
       present: 0,
@@ -400,7 +394,6 @@ const AttendanceTable = ({
     return stats;
   }, []);
 
-  // Data processing
   const allUniqueSections = useMemo(() => {
     const sections = attendances
       .map(attendance => attendance.section || '')
@@ -424,33 +417,27 @@ const AttendanceTable = ({
     return currentGradeSections;
   }, [currentGradeSections]);
 
-  // Filter and sort attendances
   const sortedAttendances = useMemo(() => {
     let filtered = attendances;
     
-    // Apply date filter
     if (selectedDate) {
       filtered = filtered.filter(attendance => attendance.date === selectedDate);
     }
     
-    // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(attendance => 
         attendance.status?.toLowerCase() === statusFilter.toLowerCase()
       );
     }
     
-    // Apply grade filter
     if (currentClass !== 'all') {
       filtered = filtered.filter(attendance => attendance.grade === currentClass);
     }
     
-    // Apply section filter
     if (selectedSection) {
       filtered = filtered.filter(attendance => attendance.section === selectedSection);
     }
     
-    // Apply search filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(attendance => 
@@ -467,7 +454,6 @@ const AttendanceTable = ({
     return sortEntities(filtered, { type: 'student' });
   }, [attendances, selectedDate, statusFilter, currentClass, selectedSection, searchTerm]);
 
-  // Effects
   useEffect(() => {
     if (selectedSection && currentClass !== 'all') {
       const isValidSection = currentGradeSections.includes(selectedSection);
@@ -489,7 +475,6 @@ const AttendanceTable = ({
     }
   }, [currentClass, onGradeUpdate]);
 
-  // Update stats when filtered data changes
   useEffect(() => {
     if (onStatsUpdate) {
       const stats = calculateStats(sortedAttendances);
@@ -497,12 +482,10 @@ const AttendanceTable = ({
     }
   }, [sortedAttendances, onStatsUpdate, calculateStats]);
 
-  // Fetch data when date or class changes
   useEffect(() => {
     fetchAttendanceForDate(selectedDate, currentClass);
   }, [selectedDate, currentClass, fetchAttendanceForDate]);
 
-  // Render helpers
   const renderTimePicker = useCallback((fieldName) => (
     <TimePicker
       name={fieldName}

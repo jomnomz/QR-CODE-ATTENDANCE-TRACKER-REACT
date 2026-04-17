@@ -34,14 +34,12 @@ export const useGradeAttendanceStats = (teacherId, teacherSections) => {
     try {
       const today = getPhilippinesDate();
       
-      // Get all grades - remove ORDER BY from query since we'll sort manually
       const { data: grades, error: gradesError } = await supabase
         .from('grades')
         .select('id, grade_level');
 
       if (gradesError) throw gradesError;
 
-      // Sort grades by grade number: 7, 8, 9, 10
       const sortedGrades = [...(grades || [])].sort((a, b) => {
         const gradeNumA = getGradeNumber(a.grade_level);
         const gradeNumB = getGradeNumber(b.grade_level);
@@ -60,13 +58,11 @@ export const useGradeAttendanceStats = (teacherId, teacherSections) => {
       };
 
       for (const grade of sortedGrades) {
-        // Get students for this grade
         let studentsQuery = supabase
           .from('students')
           .select('lrn, grade_id, section_id')
           .eq('grade_id', grade.id);
 
-        // Filter by teacher's sections if provided
         if (teacherSections && teacherSections.length > 0) {
           const sectionIds = teacherSections.map(s => s.section_id);
           studentsQuery = studentsQuery.in('section_id', sectionIds);
@@ -76,7 +72,6 @@ export const useGradeAttendanceStats = (teacherId, teacherSections) => {
         if (studentsError) throw studentsError;
 
         if (!students || students.length === 0) {
-          // If no students, add zero values
           stats.labels.push(grade.grade_level);
           stats.present.push(0);
           stats.late.push(0);
@@ -90,7 +85,6 @@ export const useGradeAttendanceStats = (teacherId, teacherSections) => {
 
         const studentLRNs = students.map(s => s.lrn);
 
-        // Get attendance for these students today
         const { data: attendanceRecords, error: attendanceError } = await supabase
           .from('attendance')
           .select('student_lrn, status')
@@ -99,13 +93,11 @@ export const useGradeAttendanceStats = (teacherId, teacherSections) => {
 
         if (attendanceError) throw attendanceError;
 
-        // Initialize counts
         let presentCount = 0;
         let lateCount = 0;
         let absentCount = 0;
         const totalStudents = students.length;
 
-        // Count statuses
         if (attendanceRecords && attendanceRecords.length > 0) {
           attendanceRecords.forEach(record => {
             if (record.status === 'present') presentCount++;
@@ -114,7 +106,6 @@ export const useGradeAttendanceStats = (teacherId, teacherSections) => {
           });
         }
 
-        // Calculate percentages
         const presentPercent = totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
         const latePercent = totalStudents > 0 ? Math.round((lateCount / totalStudents) * 100) : 0;
         const absentPercent = totalStudents > 0 ? Math.round((absentCount / totalStudents) * 100) : 0;
@@ -149,7 +140,6 @@ export const useGradeAttendanceStats = (teacherId, teacherSections) => {
   useEffect(() => {
     fetchGradeAttendanceStats();
 
-    // Subscribe to real-time updates
     const subscription = supabase
       .channel('grade-attendance-stats')
       .on(

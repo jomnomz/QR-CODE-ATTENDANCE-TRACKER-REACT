@@ -21,7 +21,6 @@ const TeacherStudentViewTable = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   
-  // Modal states
   const [showReportGeneration, setShowReportGeneration] = useState(false);
   const [showStudentReport, setShowStudentReport] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -411,8 +410,7 @@ const TeacherStudentViewTable = () => {
             search={true}
           />
           <Button
-            icon={<FontAwesomeIcon icon={faCalendarAlt} />}
-            label="Configure Reports"
+            label="Mark Valid Days"
             onClick={() => setShowReportGeneration(true)}
             color="success"
             height="sm"
@@ -504,7 +502,6 @@ const TeacherStudentViewTable = () => {
         </table>
       </div>
 
-      {/* Modals */}
       <ReportGenerationModal
         isOpen={showReportGeneration}
         onClose={() => setShowReportGeneration(false)}

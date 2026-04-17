@@ -16,7 +16,6 @@ function TeacherStudents() {
       <PageLabel icon={<FontAwesomeIcon icon={faUsers} />} label="Students"></PageLabel>
       <SectionLabel label="Student Record"></SectionLabel>
       
-      {/* For Teachers: Show read-only view instead of full admin table */}
       <TeacherStudentViewTable />
     </main>
   );

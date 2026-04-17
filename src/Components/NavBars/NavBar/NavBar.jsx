@@ -40,9 +40,9 @@ function NavBar({ userType = 'admin', onCollapseChange }) {
       { path: '/guardians', icon: <FamilyRestroomIcon />, label: 'Guardians', type: 'mui' },
       { path: '/messages', icon: <MessageIcon />, label: 'Notifications', type: 'mui' },
       { path: '/attendance', icon: <AssignmentTurnedInIcon />, label: 'Attendance', type: 'mui' },
+      // { path: '/reports', icon: <AssignmentIcon />, label: 'Reports', type: 'mui' },
       { path: '/masterData', icon: <TableChartIcon />, label: 'Master Data', type: 'mui' },
       { path: '/teachers', icon: faChalkboardUser, label: 'Teachers', type: 'fa' },
-      // { path: '/reports', icon: <AssignmentIcon />, label: 'Reports', type: 'mui' },
       { path: '/settings', icon: <SettingsIcon />, label: 'Settings', type: 'mui' }
     ],
     teacher: [
@@ -66,8 +66,8 @@ function NavBar({ userType = 'admin', onCollapseChange }) {
             <p>Welcome!</p>
              <p>
               {userType === 'admin' 
-                ? `Admin ${profile?.last_name}`
-                : `Teacher ${profile?.last_name}`
+                ? `Admin ${profile?.first_name} ${profile?.last_name}`
+                : `Teacher ${profile?.first_name} ${profile?.last_name}`
               }
             </p>
           </>

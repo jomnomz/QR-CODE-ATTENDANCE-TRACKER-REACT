@@ -17,7 +17,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [gradeLevel, setGradeLevel] = useState(null);
 
-  // Simple date helper
   const formatDate = (date, formatStr = 'yyyy-MM-dd') => {
     const d = new Date(date);
     const year = d.getFullYear();
@@ -58,14 +57,12 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
     return new Date(year, month + 1, 0).getDate();
   };
 
-  // Extract grade level from current class (format: "7-Section A" -> grade "7")
   const extractGradeLevel = (className) => {
     if (!className) return null;
     const match = className.match(/^(\d+)[-\s]/);
     return match ? match[1] : null;
   };
 
-  // Get teacher ID
   useEffect(() => {
     const getTeacherId = async () => {
       if (!user?.email) return;
@@ -84,7 +81,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
     getTeacherId();
   }, [user]);
 
-  // Extract grade level when currentClass changes
   useEffect(() => {
     if (currentClass) {
       const grade = extractGradeLevel(currentClass);
@@ -92,7 +88,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
     }
   }, [currentClass]);
 
-  // Load data
   useEffect(() => {
     if (!isOpen || !teacherId || !gradeLevel) return;
     
@@ -110,7 +105,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
       
       console.log(`Loading data for Grade ${gradeLevel}, ${formatDate(start)} to ${formatDate(end)}`);
       
-      // Get grade ID first
       const { data: gradeData, error: gradeError } = await supabase
         .from('grades')
         .select('id')
@@ -120,7 +114,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
       if (gradeError) throw gradeError;
       if (!gradeData) throw new Error(`Grade ${gradeLevel} not found`);
       
-      // Get all students in this grade
       const { data: students, error: studentsError } = await supabase
         .from('students')
         .select('id, lrn')
@@ -139,7 +132,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
         return;
       }
       
-      // Get attendance records for these students in the date range
       const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance')
         .select('date, student_id, student_lrn')
@@ -151,13 +143,11 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
       
       console.log('Attendance data found:', attendanceData?.length);
       
-      // Get unique dates with ANY attendance record
       const uniqueDates = [...new Set(attendanceData?.map(item => item.date) || [])].sort();
       console.log('Unique dates with ANY attendance:', uniqueDates);
       
       setAttendanceDates(uniqueDates);
       
-      // Get teacher's saved school days for this grade
       const { data: savedDays, error: savedError } = await supabase
         .from('class_school_days')
         .select('date')
@@ -173,18 +163,14 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
       
       console.log('Saved school days:', savedDays);
       
-      // Create initial selections
       const initialSelections = {};
       const savedDateSet = new Set(savedDays?.map(item => item.date) || []);
       
-      // If teacher has saved days, use those
       if (savedDateSet.size > 0) {
-        // Use saved dates
         uniqueDates.forEach(date => {
           initialSelections[date] = savedDateSet.has(date);
         });
       } else {
-        // Default: All dates with ANY attendance are selected (green)
         uniqueDates.forEach(date => {
           initialSelections[date] = true;
         });
@@ -202,7 +188,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
   };
 
   const handleDateClick = (dateStr) => {
-    // Only toggle if date has attendance
     if (!attendanceDates.includes(dateStr)) return;
     
     const newSelected = !selectedDates[dateStr];
@@ -220,14 +205,12 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
       const start = startOfMonth(currentMonth);
       const end = endOfMonth(currentMonth);
       
-      // Get dates teacher wants to save (green checked boxes)
       const datesToSave = Object.entries(selectedDates)
         .filter(([dateStr, isSelected]) => isSelected)
         .map(([dateStr]) => dateStr);
       
       console.log('Saving dates for Grade', gradeLevel, ':', datesToSave);
       
-      // Delete existing records for this month and grade
       const { error: deleteError } = await supabase
         .from('class_school_days')
         .delete()
@@ -241,7 +224,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
         throw deleteError;
       }
       
-      // Insert new records if any
       if (datesToSave.length > 0) {
         const records = datesToSave.map(dateStr => ({
           date: dateStr,
@@ -265,7 +247,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
       alert(`Successfully saved ${datesToSave.length} valid school days for Grade ${gradeLevel}`);
       setHasChanges(false);
       
-      // Refresh data to confirm save
       loadMonthData();
       
     } catch (error) {
@@ -280,15 +261,12 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = new Date(year, month, 1).getDay();
     
-    // Create array of days
     const days = [];
     
-    // Empty cells for days before the 1st
     for (let i = 0; i < firstDay; i++) {
       days.push(null);
     }
     
-    // Actual days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dateStr = formatDate(date);
@@ -382,7 +360,7 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <div className={styles.reportGenerationModal}>
         <div className={styles.modalHeader}>
-          <h2>Configure School Days - Grade {gradeLevel}</h2>
+          <h2>Mark Valid Days - Grade {gradeLevel}</h2>
           <p className={styles.subtitle}>
             Green boxes have attendance data. Click to toggle as valid school day.
             <br />
@@ -422,7 +400,6 @@ const ReportGenerationModal = ({ isOpen, onClose, currentClass }) => {
           )}
         </div>
         
-        {/* LEGEND SECTION REMOVED */}
         
         <div className={styles.footer}>
           <div className={styles.footerActions}>
